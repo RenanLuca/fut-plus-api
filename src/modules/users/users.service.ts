@@ -4,12 +4,14 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { UsersRepository } from "@src/shared/database/repositories/users.repository";
+import { GroupMatchesRepository } from "@src/shared/database/repositories/group-matches.repository";
 import { UpdateUserDto } from "./dto/updateUser.dto";
 
 @Injectable()
 export class UsersService {
   constructor(
     private readonly usersRepository: UsersRepository,
+    private readonly groupMatchesRepository: GroupMatchesRepository,
   ) {}
   async checkIfUserExists(userId: string) {
     const user = await this.usersRepository.findUnique({
@@ -61,6 +63,23 @@ export class UsersService {
     return this.usersRepository.delete({
       where: {
         id: userId,
+      },
+    });
+  }
+
+  async getUpcomingMatch(userId: string) {
+    return this.groupMatchesRepository.findOne({
+      where: {
+        matchDate: { gte: new Date() },
+        group: {
+          groupMembers: { some: { userId } },
+        },
+      },
+      orderBy: { matchDate: "asc" },
+      include: {
+        group: {
+          select: { id: true, name: true, valuePerUser: true },
+        },
       },
     });
   }

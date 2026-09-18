@@ -20,6 +20,11 @@ export class UsersController {
     return this.usersService.getUserById(userId);
   }
 
+  @Get("me/upcoming-match")
+  upcomingMatch(@ActiveUserId() userId: string) {
+    return this.usersService.getUpcomingMatch(userId);
+  }
+
   @Put()
   update(@Body() updateUserDto: UpdateUserDto, @ActiveUserId() userId: string) {
     return this.usersService.update(userId, updateUserDto);

@@ -84,6 +84,23 @@ export class GroupMembersService {
       where: {
         groupId,
       },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            profilePicture: true,
+            position: true,
+          },
+        },
+        guestUser: {
+          select: {
+            id: true,
+            name: true,
+            position: true,
+          },
+        },
+      },
     });
   }
 }

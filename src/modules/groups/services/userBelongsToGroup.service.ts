@@ -23,6 +23,6 @@ export class UserBelongsToGroupService {
       );
     }
 
-    return { isMember: !!groupMember };
+    return { isMember: !!groupMember, member: groupMember };
   }
 }

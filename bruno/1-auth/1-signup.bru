@@ -23,6 +23,10 @@ body:json {
   }
 }
 
+vars:pre-request {
+  baseUrl: http://localhost:3000
+}
+
 tests {
   test("deve criar o usuário e retornar o accessToken", function() {
     expect(res.getStatus()).to.equal(201);

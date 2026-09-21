@@ -126,6 +126,34 @@ const DEMO_GUESTS: {
   },
 ];
 
+function brazilCurrentMonthStart(): Date {
+  const brazilNow = new Date(
+    Date.now() - BRAZIL_UTC_OFFSET_HOURS * 60 * 60 * 1000,
+  );
+  return new Date(
+    Date.UTC(
+      brazilNow.getUTCFullYear(),
+      brazilNow.getUTCMonth(),
+      1,
+    ),
+  );
+}
+
+async function addMonthlyPayment(
+  groupId: string,
+  userId: string,
+  amount: number,
+) {
+  await prisma.groupPayment.create({
+    data: {
+      groupId,
+      userId,
+      amount,
+      period: brazilCurrentMonthStart(),
+    },
+  });
+}
+
 type DemoUser = {
   id: string;
   type: GroupMemberType;
@@ -317,13 +345,74 @@ async function seedEventualGroup(
   console.log(
     `Partida B (${matchBDate.toISOString()}): todos confirmados (3 convidados), times já gerados.`,
   );
+
+  await seedPastMatchesAndPayments(
+    group.id,
+    matchADate,
+    demoUsers,
+  );
+}
+
+async function seedPastMatchesAndPayments(
+  groupId: string,
+  matchADate: Date,
+  demoUsers: DemoUser[],
+) {
+  const [lucas, vitor, pedro, gabriel, , bruno, , diego] =
+    demoUsers;
+
+  const pastMatchDate = new Date(matchADate);
+  pastMatchDate.setUTCDate(pastMatchDate.getUTCDate() - 14);
+  const olderMatchDate = new Date(matchADate);
+  olderMatchDate.setUTCDate(olderMatchDate.getUTCDate() - 21);
+
+  const pastMatch = await prisma.groupMatch.create({
+    data: { groupId, matchDate: pastMatchDate },
+  });
+  const olderMatch = await prisma.groupMatch.create({
+    data: { groupId, matchDate: olderMatchDate },
+  });
+  for (const user of [vitor, bruno, diego]) {
+    await prisma.groupMatchPresence.create({
+      data: {
+        groupMatchId: pastMatch.id,
+        userId: user.id,
+        isPresent: true,
+      },
+    });
+  }
+  for (const user of [bruno, diego]) {
+    await prisma.groupMatchPresence.create({
+      data: {
+        groupMatchId: olderMatch.id,
+        userId: user.id,
+        isPresent: true,
+      },
+    });
+  }
+
+  await addMonthlyPayment(groupId, lucas.id, 20);
+  await addMonthlyPayment(groupId, pedro.id, 20);
+  await addMonthlyPayment(groupId, gabriel.id, 15);
+  await prisma.groupPayment.create({
+    data: {
+      groupId,
+      userId: vitor.id,
+      matchId: pastMatch.id,
+      amount: 20,
+      period: pastMatchDate,
+    },
+  });
+  console.log(
+    "Pagamentos demo: 3 mensalidades do mês pagas (Lucas, Pedro, Gabriel), 1 por partida (Vitor); Bruno e Diego têm 2 partidas passadas pendentes; o dono não pagou a mensalidade.",
+  );
 }
 
 async function seedMonthlyGroup(
   ownerId: string,
   demoUsers: DemoUser[],
 ) {
-  await createGroup({
+  const group = await createGroup({
     ownerId,
     name: "Pelada Mensal",
     weekday: Weekday.MONDAY,
@@ -332,6 +421,7 @@ async function seedMonthlyGroup(
     valuePerUser: 25,
     members: demoUsers.slice(0, 4),
   });
+  await addMonthlyPayment(group.id, demoUsers[0].id, 25);
   console.log(
     "Grupo mensal sem partidas (elas são geradas pelo cron automaticamente).",
   );

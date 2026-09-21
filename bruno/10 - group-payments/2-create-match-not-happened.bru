@@ -1,5 +1,5 @@
 meta {
-  name: Create payment (avulso, partida futura)
+  name: Create payment (diarista, partida futura)
   type: http
   seq: 2
 }
@@ -15,11 +15,12 @@ headers {
 }
 
 auth:bearer {
-  token: {{authToken}}
+  token: {{authToken2}}
 }
 
 body:json {
   {
+    "amount": 15,
     "matchId": "{{matchId}}"
   }
 }
@@ -31,6 +32,9 @@ tests {
 }
 
 docs {
+  Usa o authToken2, que entrou no grupo como DAILY (pasta 4-group-members),
+  então passa da regra de tipo de membro e chega na checagem da partida.
+
   {{matchId}} vem de "Create match" (pasta 6-group-matches), que usa
   matchDate fixo em 2027 de propósito. Como a partida ainda não
   aconteceu, checkIfUserWentToMatch nunca chega a ser satisfeito e o

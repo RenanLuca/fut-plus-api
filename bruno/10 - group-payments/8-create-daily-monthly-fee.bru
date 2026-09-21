@@ -1,0 +1,36 @@
+meta {
+  name: Create payment (diarista, mensalidade)
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseUrl}}/groups/{{groupId}}/group-payments
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{authToken2}}
+}
+
+body:json {
+  {
+    "amount": 30
+  }
+}
+
+tests {
+  test("diarista não pode pagar mensalidade, só por partida", function() {
+    expect(res.getStatus()).to.equal(400);
+  });
+}
+
+docs {
+  Regra por tipo de membro: DAILY paga por partida (com matchId).
+  Sem matchId é mensalidade, permitida só para MONTHLY e OWNER.
+}

@@ -20,15 +20,15 @@ auth:bearer {
 
 body:json {
   {
-    "type": "MONTHLY",
+    "type": "DAILY",
     "rank": "BRASILEIRAO"
   }
 }
 
 tests {
-  test("deve conectar o usuário autenticado como membro MONTHLY", function() {
+  test("deve conectar o usuário autenticado como membro DAILY", function() {
     expect(res.getStatus()).to.equal(201);
-    expect(res.getBody().type).to.equal("MONTHLY");
+    expect(res.getBody().type).to.equal("DAILY");
     bru.setVar("userId2", res.getBody().userId);
   });
 }
@@ -36,7 +36,7 @@ tests {
 docs {
   Único jeito de entrar num grupo (o antigo POST /group-members foi
   removido). Quem entra é sempre o usuário autenticado; escolhe o tipo
-  (MONTHLY ou DAILY) e o rank. Usa o authToken2 (do "Signup 2"): não
+  (MONTHLY ou DAILY) e o rank. Aqui entra como DAILY, para exercitar as regras de pagamento por partida. Usa o authToken2 (do "Signup 2"): não
   precisa ser dono nem membro. Se já for membro, responde 409.
 
   Rode depois do "Create group invite" — precisa do inviteId. Captura o

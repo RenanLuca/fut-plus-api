@@ -19,7 +19,9 @@ auth:bearer {
 }
 
 body:json {
-  {}
+  {
+    "amount": 30
+  }
 }
 
 tests {
@@ -28,12 +30,15 @@ tests {
     expect(res.getBody()).to.have.property('id');
     expect(res.getBody().matchId).to.be.null;
     expect(res.getBody()).to.have.property('period');
+    expect(res.getBody().amount).to.equal(30);
     bru.setVar("paymentId", res.getBody().id);
   });
 }
 
 docs {
-  Sem matchId no body = pagamento de mensalista. O period é calculado no
+  Sem matchId no body = mensalidade (só mensalista e dono; diarista recebe
+  400, veja "Create payment (diarista, mensalidade)"). O amount (valor
+  pago) é obrigatório e informado pelo membro. O period é calculado no
   backend como o início do mês corrente no fuso do Brasil
   (getBrazilCurrentMonthStart), não é algo que o cliente envia.
 }

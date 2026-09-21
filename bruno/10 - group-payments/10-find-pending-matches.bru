@@ -1,0 +1,31 @@
+meta {
+  name: Find pending matches (diarista)
+  type: http
+  seq: 10
+}
+
+get {
+  url: {{baseUrl}}/groups/{{groupId}}/group-payments/pending-matches
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{authToken2}}
+}
+
+tests {
+  test("deve listar as partidas em que o membro foi e ainda não pagou", function() {
+    expect(res.getStatus()).to.equal(200);
+    expect(res.getBody()).to.be.an('array');
+  });
+}
+
+docs {
+  Devolve as partidas do grupo que já aconteceram, em que o usuário
+  logado estava presente (isPresent) e sem pagamento dele para a partida,
+  da mais recente para a mais antiga. Qualquer membro pode consultar.
+
+  No fluxo desta coleção a partida usa data de 2027, então a lista vem
+  vazia; serve para validar o contrato e o status.
+}

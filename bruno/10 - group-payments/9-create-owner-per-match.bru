@@ -1,0 +1,37 @@
+meta {
+  name: Create payment (dono, por partida)
+  type: http
+  seq: 9
+}
+
+post {
+  url: {{baseUrl}}/groups/{{groupId}}/group-payments
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{authToken}}
+}
+
+body:json {
+  {
+    "amount": 15,
+    "matchId": "{{matchId}}"
+  }
+}
+
+tests {
+  test("dono (e mensalista) não pode pagar por partida, só mensalidade", function() {
+    expect(res.getStatus()).to.equal(400);
+  });
+}
+
+docs {
+  Regra por tipo de membro: OWNER e MONTHLY pagam a mensalidade (sem
+  matchId). Com matchId só o diarista.
+}

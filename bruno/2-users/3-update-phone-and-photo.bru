@@ -1,0 +1,40 @@
+meta {
+  name: Update me (telefone e foto)
+  type: http
+  seq: 3
+}
+
+put {
+  url: {{baseUrl}}/users
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{authToken}}
+}
+
+body:json {
+  {
+    "telefone": "11999999999",
+    "profilePicture": "https://example.com/foto.jpg"
+  }
+}
+
+tests {
+  test("deve salvar telefone (só dígitos) e foto (URL)", function() {
+    expect(res.getStatus()).to.equal(200);
+    expect(res.getBody().telefone).to.equal("11999999999");
+    expect(res.getBody().profilePicture).to.equal("https://example.com/foto.jpg");
+  });
+}
+
+docs {
+  telefone aceita só 10 ou 11 dígitos (o front mostra com máscara, mas
+  envia só os dígitos). profilePicture precisa ser uma URL http(s) com
+  protocolo — a API ainda não tem upload, então a foto é um link.
+}

@@ -1,0 +1,37 @@
+meta {
+  name: Update me (telefone e foto inválidos)
+  type: http
+  seq: 4
+}
+
+put {
+  url: {{baseUrl}}/users
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{authToken}}
+}
+
+body:json {
+  {
+    "telefone": "(11) 99999-9999",
+    "profilePicture": "foto-sem-protocolo.jpg"
+  }
+}
+
+tests {
+  test("deve recusar telefone formatado e foto que não é URL http(s)", function() {
+    expect(res.getStatus()).to.equal(400);
+  });
+}
+
+docs {
+  O telefone deve chegar só com dígitos (sem máscara) e a foto precisa
+  de protocolo (http:// ou https://).
+}

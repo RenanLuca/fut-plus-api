@@ -1,0 +1,40 @@
+meta {
+  name: Update me (limpar telefone e foto)
+  type: http
+  seq: 5
+}
+
+put {
+  url: {{baseUrl}}/users
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{authToken}}
+}
+
+body:json {
+  {
+    "telefone": "",
+    "profilePicture": ""
+  }
+}
+
+tests {
+  test("string vazia limpa os campos e grava null", function() {
+    expect(res.getStatus()).to.equal(200);
+    expect(res.getBody().telefone).to.be.null;
+    expect(res.getBody().profilePicture).to.be.null;
+  });
+}
+
+docs {
+  Um valor vazio ("") é convertido em null pelo DTO (Transform) antes de
+  validar e gravar, então dá pra remover o telefone ou a foto sem a API
+  aceitar lixo.
+}

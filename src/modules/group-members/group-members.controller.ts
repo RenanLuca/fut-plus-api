@@ -1,5 +1,4 @@
 import {
-  Body,
   Controller,
   Delete,
   Get,
@@ -7,11 +6,9 @@ import {
   HttpStatus,
   Param,
   ParseUUIDPipe,
-  Post,
   UseGuards,
 } from "@nestjs/common";
 import { GroupMembersService } from "./group-members.service";
-import { CreateGroupMemberDto } from "./dto/create-group-member.dto";
 import { ActiveUserId } from "@src/shared/decorators/ActiveUserId";
 import { GroupOwnerGuard } from "../groups/guards/group-owner.guard";
 
@@ -20,19 +17,6 @@ export class GroupMembersController {
   constructor(
     private readonly groupMembersService: GroupMembersService,
   ) {}
-
-  @Post()
-  create(
-    @Param("groupId", ParseUUIDPipe) groupId: string,
-    @ActiveUserId() userId: string,
-    @Body() createGroupMemberDto: CreateGroupMemberDto,
-  ) {
-    return this.groupMembersService.addGroupMember(
-      groupId,
-      createGroupMemberDto,
-      userId,
-    );
-  }
 
   @Get()
   findAllPerGroup(

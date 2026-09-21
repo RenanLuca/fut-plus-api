@@ -202,6 +202,7 @@ model GroupPayment {
   userId    String   @map("user_id")
   matchId   String?  @map("match_id")
   period    DateTime @db.Date
+  amount    Float
   receipt   String?
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")

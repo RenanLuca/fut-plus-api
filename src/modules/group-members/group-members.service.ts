@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { BadRequestException, Injectable } from "@nestjs/common";
 import { GroupMembersRepository } from "@src/shared/database/repositories/group-members.repository";
 import { GuestUsersRepository } from "@src/shared/database/repositories/guest-users.repository";
 import { UsersService } from "../users/users.service";
@@ -47,9 +47,15 @@ export class GroupMembersService {
     groupId: string,
     identifier: { userId?: string; guestUserId?: string },
   ) {
-    await this.groupsService.checkIfGroupExists(groupId);
+    const group =
+      await this.groupsService.checkIfGroupExists(groupId);
 
     if (identifier.userId) {
+      if (group.ownerId === identifier.userId) {
+        throw new BadRequestException(
+          "The group owner cannot leave or be removed; transfer ownership first",
+        );
+      }
       await this.usersBelongToGroupService.check({
         memberId: identifier.userId,
         groupId,

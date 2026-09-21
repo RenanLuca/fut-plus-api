@@ -11,6 +11,7 @@ import { GroupPaymentsRepository } from "@src/shared/database/repositories/group
 import { UserBelongsToGroupService } from "../groups/services/userBelongsToGroup.service";
 import { GroupMatchesService } from "../group-matches/services/group-matches.service";
 import { getBrazilCurrentMonthStart } from "@src/shared/utils/brazil-date";
+import { GroupMemberType } from "../../../generated/prisma/client";
 import { PaymentFilterQueryDto } from "./dto/payment-filter-query.dto";
 import {
   buildPaginationMeta,
@@ -37,11 +38,23 @@ export class GroupPaymentsService {
     userId: string;
     groupId: string;
   }) {
-    const { receipt, matchId } = createGroupPaymentDto;
-    await this.userBelongsToGroupService.check({
-      memberId: userId,
-      groupId,
-    });
+    const { receipt, matchId, amount } = createGroupPaymentDto;
+    const { member } =
+      await this.userBelongsToGroupService.check({
+        memberId: userId,
+        groupId,
+      });
+    const isDailyMember = member.type === GroupMemberType.DAILY;
+    if (isDailyMember && !matchId) {
+      throw new BadRequestException(
+        "Daily members pay per match, not the monthly fee",
+      );
+    }
+    if (!isDailyMember && matchId) {
+      throw new BadRequestException(
+        "Monthly members and the owner pay the monthly fee, not per match",
+      );
+    }
     let period: Date | string;
 
     if (matchId) {
@@ -67,6 +80,7 @@ export class GroupPaymentsService {
 
     return this.groupPaymentsRepository.create({
       data: {
+        amount,
         receipt,
         groupId,
         userId,

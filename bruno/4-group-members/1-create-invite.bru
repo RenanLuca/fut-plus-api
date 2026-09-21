@@ -1,0 +1,33 @@
+meta {
+  name: Create group invite
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/groups/{{groupId}}/invite
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{authToken}}
+}
+
+tests {
+  test("deve gerar o link de convite do grupo, só o dono pode", function() {
+    expect(res.getStatus()).to.equal(201);
+    expect(res.getBody()).to.have.property('id');
+    bru.setVar("inviteId", res.getBody().id);
+  });
+}
+
+docs {
+  Protegido por GroupOwnerGuard. O convite é permanente (sem expiração) e
+  existe no máximo um por grupo: chamar de novo gera outro id e invalida
+  o anterior ("gerar novo link").
+
+  O inviteId salvo aqui é usado pelo "Join group" (accept) e pelos demais
+  requests desta pasta. O link compartilhado com os jogadores é
+  <front>/invite/<inviteId>.
+}

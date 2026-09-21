@@ -1,11 +1,11 @@
 meta {
-  name: Join group
+  name: Join group via invite
   type: http
   seq: 2
 }
 
 post {
-  url: {{baseUrl}}/groups/{{groupId}}/group-members
+  url: {{baseUrl}}/invites/{{inviteId}}/accept
   body: json
   auth: bearer
 }
@@ -34,11 +34,11 @@ tests {
 }
 
 docs {
-  Esse endpoint é "auto-entrada": quem é conectado ao grupo é sempre o
-  usuário autenticado (o campo userId do token), não um userId escolhido
-  no body — por isso usa o authToken2 (do "Signup 2"), não precisa ser o
-  dono nem já ser membro do grupo.
+  Único jeito de entrar num grupo (o antigo POST /group-members foi
+  removido). Quem entra é sempre o usuário autenticado; escolhe o tipo
+  (MONTHLY ou DAILY) e o rank. Usa o authToken2 (do "Signup 2"): não
+  precisa ser dono nem membro. Se já for membro, responde 409.
 
-  Captura o userId2 a partir da própria resposta (o GroupMember criado
-  já traz o userId), usado depois no "Remove member".
+  Rode depois do "Create group invite" — precisa do inviteId. Captura o
+  userId2 a partir da resposta, usado depois no "Remove member".
 }

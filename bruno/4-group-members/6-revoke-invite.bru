@@ -1,0 +1,26 @@
+meta {
+  name: Revoke group invite
+  type: http
+  seq: 6
+}
+
+delete {
+  url: {{baseUrl}}/groups/{{groupId}}/invite
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{authToken}}
+}
+
+tests {
+  test("deve revogar o convite, só o dono pode", function() {
+    expect(res.getStatus()).to.equal(204);
+  });
+}
+
+docs {
+  Depois disso o link deixa de funcionar (GET /invites/:id e accept
+  respondem 404). Quem já entrou continua no grupo.
+}

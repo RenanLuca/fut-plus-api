@@ -1,8 +1,21 @@
 import { PositionEnum } from "@src/shared/enum/positionEnum";
-import { IsEmail, IsEnum, IsOptional, IsString } from "class-validator";
+import { Transform, TransformFnParams } from "class-transformer";
+import {
+  IsEmail,
+  IsEnum,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsUrl,
+  Matches,
+} from "class-validator";
+
+const emptyToNull = ({ value }: TransformFnParams): unknown =>
+  value === "" ? null : value;
 
 export class UpdateUserDto {
   @IsString()
+  @IsNotEmpty()
   @IsOptional()
   name?: string;
 
@@ -15,11 +28,18 @@ export class UpdateUserDto {
   @IsOptional()
   position?: PositionEnum;
 
-  @IsString()
+  @Transform(emptyToNull)
   @IsOptional()
-  profilePicture?: string;
+  @IsUrl({
+    require_protocol: true,
+    protocols: ["http", "https"],
+  })
+  profilePicture?: string | null;
 
-  @IsString()
+  @Transform(emptyToNull)
   @IsOptional()
-  telefone?: string;
+  @Matches(/^\d{10,11}$/, {
+    message: "telefone must contain only 10 or 11 digits",
+  })
+  telefone?: string | null;
 }

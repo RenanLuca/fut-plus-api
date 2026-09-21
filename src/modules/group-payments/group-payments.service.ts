@@ -8,6 +8,7 @@ import { MatchPresencesService } from "../match-presences/match-presences.servic
 import { CreateGroupPaymentDto } from "./dto/create-group-payment.dto";
 import { UpdateGroupPaymentDto } from "./dto/update-group-payment.dto";
 import { GroupPaymentsRepository } from "@src/shared/database/repositories/group-payments.repository";
+import { GroupMatchesRepository } from "@src/shared/database/repositories/group-matches.repository";
 import { UserBelongsToGroupService } from "../groups/services/userBelongsToGroup.service";
 import { GroupMatchesService } from "../group-matches/services/group-matches.service";
 import { getBrazilCurrentMonthStart } from "@src/shared/utils/brazil-date";
@@ -24,6 +25,7 @@ import { GroupsService } from "../groups/services/groups.service";
 export class GroupPaymentsService {
   constructor(
     private readonly groupPaymentsRepository: GroupPaymentsRepository,
+    private readonly groupMatchesRepository: GroupMatchesRepository,
     private readonly userBelongsToGroupService: UserBelongsToGroupService,
     private readonly groupMatchesService: GroupMatchesService,
     private readonly matchPresencesService: MatchPresencesService,
@@ -142,6 +144,24 @@ export class GroupPaymentsService {
       data,
       meta: buildPaginationMeta(page, limit, total),
     };
+  }
+
+  async findPendingMatches(groupId: string, userId: string) {
+    await this.userBelongsToGroupService.check({
+      memberId: userId,
+      groupId,
+    });
+    return this.groupMatchesRepository.findMany({
+      where: {
+        groupId,
+        matchDate: { lt: new Date() },
+        groupMatchPresences: {
+          some: { userId, isPresent: true },
+        },
+        groupPayments: { none: { userId } },
+      },
+      orderBy: { matchDate: "desc" },
+    });
   }
 
   async findOne({

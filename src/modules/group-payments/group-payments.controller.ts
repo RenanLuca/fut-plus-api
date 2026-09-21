@@ -60,6 +60,17 @@ export class GroupPaymentsController {
     );
   }
 
+  @Get("pending-matches")
+  findPendingMatches(
+    @Param("groupId", ParseUUIDPipe) groupId: string,
+    @ActiveUserId() userId: string,
+  ) {
+    return this.groupPaymentsService.findPendingMatches(
+      groupId,
+      userId,
+    );
+  }
+
   @Get(":paymentId")
   findOne(
     @Param("paymentId", ParseUUIDPipe) paymentId: string,

@@ -29,6 +29,34 @@ export class GroupsRepository {
       return group;
     });
   }
+  async transferOwnership({
+    groupId,
+    currentOwnerId,
+    newOwnerId,
+  }: {
+    groupId: string;
+    currentOwnerId: string;
+    newOwnerId: string;
+  }) {
+    return this.prisma.$transaction(async (tx) => {
+      await tx.groupMember.update({
+        where: {
+          groupId_userId: { groupId, userId: currentOwnerId },
+        },
+        data: { type: GroupMemberType.MONTHLY },
+      });
+      await tx.groupMember.update({
+        where: {
+          groupId_userId: { groupId, userId: newOwnerId },
+        },
+        data: { type: GroupMemberType.OWNER },
+      });
+      return tx.group.update({
+        where: { id: groupId },
+        data: { ownerId: newOwnerId },
+      });
+    });
+  }
   async findUnique(
     findUniqueGroupDto: Prisma.GroupFindUniqueArgs,
   ) {

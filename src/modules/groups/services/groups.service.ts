@@ -1,10 +1,12 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
 import { CreateGroupDto } from "../dto/create-group.dto";
 import { UpdateGroupDto } from "../dto/update-group.dto";
+import { TransferOwnershipDto } from "../dto/transfer-ownership.dto";
 import { GroupsRepository } from "@src/shared/database/repositories/groups.repository";
 import { UserBelongsToGroupService } from "./userBelongsToGroup.service";
 import { FrequencyType } from "@src/shared/enum/FrequencyType";
@@ -67,6 +69,29 @@ export class GroupsService {
     await this.checkIfGroupExists(groupId);
     return await this.groupsRepository.delete({
       where: { id: groupId },
+    });
+  }
+
+  async transferOwnership(
+    groupId: string,
+    userId: string,
+    { newOwnerId }: TransferOwnershipDto,
+  ) {
+    await this.checkIfUserIsOwner(groupId, userId);
+    if (newOwnerId === userId) {
+      throw new BadRequestException(
+        "The new owner must be a different member",
+      );
+    }
+    await this.userBelongsToGroupService.check({
+      memberId: newOwnerId,
+      groupId,
+      type: "user",
+    });
+    return this.groupsRepository.transferOwnership({
+      groupId,
+      currentOwnerId: userId,
+      newOwnerId,
     });
   }
 

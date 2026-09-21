@@ -9,6 +9,7 @@ import { UsersModule } from "./modules/users/users.module";
 import { MatchGuestsModule } from "./modules/match-guests/match-guests.module";
 import { GroupsModule } from "./modules/groups/groups.module";
 import { GroupMembersModule } from "./modules/group-members/group-members.module";
+import { GroupInvitesModule } from "./modules/group-invites/group-invites.module";
 import { GroupMatchesModule } from "./modules/group-matches/group-matches.module";
 import { MatchPresencesModule } from "./modules/match-presences/match-presences.module";
 import { MatchTeamsModule } from "./modules/match-teams/match-teams.module";
@@ -24,6 +25,7 @@ import { GroupPaymentsModule } from "./modules/group-payments/group-payments.mod
     UsersModule,
     GroupsModule,
     GroupMembersModule,
+    GroupInvitesModule,
     GroupMatchesModule,
     MatchGuestsModule,
     MatchPresencesModule,

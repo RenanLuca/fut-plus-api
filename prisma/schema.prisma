@@ -116,8 +116,7 @@ model GroupMember {
 
 model GroupInvite {
   id        String   @id @default(uuid())
-  groupId   String
-  expiresAt DateTime @map("expires_at")
+  groupId   String   @unique
   createdAt DateTime @default(now()) @map("created_at")
 
   group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)

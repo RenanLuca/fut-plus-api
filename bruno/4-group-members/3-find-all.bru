@@ -15,14 +15,15 @@ auth:bearer {
 }
 
 tests {
-  test("deve listar dono, guest e membro secundário", function() {
+  test("deve listar dono e membro secundário", function() {
     expect(res.getStatus()).to.equal(200);
     expect(res.getBody()).to.be.an('array');
-    expect(res.getBody().length).to.be.at.least(3);
+    expect(res.getBody().length).to.be.at.least(2);
   });
 }
 
 docs {
-  Lista os GroupMember do grupo (dono criado junto do grupo, guest e
-  membro secundário criados nos requests anteriores).
+  Lista os GroupMember do grupo (dono criado junto do grupo e membro
+  secundário criado no request anterior), com os dados do usuário
+  (nome, posição, foto) em `user`.
 }

@@ -1,0 +1,45 @@
+meta {
+  name: Add guest to match
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/groups/{{groupId}}/group-matches/{{matchId}}/guests
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{authToken}}
+}
+
+body:json {
+  {
+    "name": "Convidado Teste",
+    "position": "DEFENDER",
+    "rank": "BRASILEIRAO"
+  }
+}
+
+tests {
+  test("deve criar o convidado já confirmado, só o dono pode", function() {
+    expect(res.getStatus()).to.equal(201);
+    expect(res.getBody()).to.have.property('id');
+    expect(res.getBody().groupMatchId).to.equal(bru.getVar("matchId"));
+    bru.setVar("guestUserId", res.getBody().id);
+  });
+}
+
+docs {
+  Protegido por GroupOwnerGuard. O convidado pertence só a essa partida:
+  cria o GuestUser e a presença confirmada (isPresent: true) numa
+  transaction, e some junto se a partida for apagada.
+
+  Rode depois do "Create match" — precisa do matchId. O guestUserId
+  salvo aqui é usado pela pasta 9-match-team-players.
+}

@@ -52,21 +52,10 @@ export class GroupMembersController {
     @Param("groupId", ParseUUIDPipe) groupId: string,
     @Param("userId", ParseUUIDPipe) userId: string,
   ) {
-    return this.groupMembersService.removeGroupMember(groupId, {
+    return this.groupMembersService.removeGroupMember(
+      groupId,
       userId,
-    });
-  }
-
-  @UseGuards(GroupOwnerGuard)
-  @HttpCode(HttpStatus.NO_CONTENT)
-  @Delete("guest/:guestUserId")
-  removeGuest(
-    @Param("groupId", ParseUUIDPipe) groupId: string,
-    @Param("guestUserId", ParseUUIDPipe) guestUserId: string,
-  ) {
-    return this.groupMembersService.removeGroupMember(groupId, {
-      guestUserId,
-    });
+    );
   }
 
   @HttpCode(HttpStatus.NO_CONTENT)
@@ -75,8 +64,9 @@ export class GroupMembersController {
     @Param("groupId", ParseUUIDPipe) groupId: string,
     @ActiveUserId() userId: string,
   ) {
-    return this.groupMembersService.removeGroupMember(groupId, {
+    return this.groupMembersService.removeGroupMember(
+      groupId,
       userId,
-    });
+    );
   }
 }

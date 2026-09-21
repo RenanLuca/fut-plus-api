@@ -5,12 +5,14 @@ import { MatchTeamsPlayersRepository } from "@src/shared/database/repositories/m
 import { MatchTeamPlayerDto } from "./dto/match-team-player.dto";
 import { UserBelongsToGroupService } from "../groups/services/userBelongsToGroup.service";
 import { GroupMatchesService } from "../group-matches/services/group-matches.service";
+import { MatchGuestsService } from "../match-guests/match-guests.service";
 
 @Injectable()
 export class MatchTeamPlayersService {
   constructor(
     private readonly groupMatchesService: GroupMatchesService,
     private readonly userBelongsToGroupService: UserBelongsToGroupService,
+    private readonly matchGuestsService: MatchGuestsService,
     private readonly matchTeamsService: MatchTeamsService,
     private readonly matchTeamPlayersRepository: MatchTeamsPlayersRepository,
   ) {}
@@ -33,15 +35,13 @@ export class MatchTeamPlayersService {
           },
         );
         await Promise.all(
-          team.players.map(async (player) => {
-            const memberId = player.userId ?? player.guestUserId;
-            if (!memberId) return;
-            await this.userBelongsToGroupService.check({
-              memberId,
+          team.players.map((player) =>
+            this.checkPlayerBelongsToMatch({
+              player,
               groupId,
-              type: player.userId ? "user" : "guest",
-            });
-          }),
+              matchId,
+            }),
+          ),
         );
       }),
     );
@@ -83,12 +83,11 @@ export class MatchTeamPlayersService {
     });
     await Promise.all(
       players.map(async (player) => {
-        const memberId = player.userId ?? player.guestUserId;
-        if (!memberId) return;
-        await this.userBelongsToGroupService.check({
-          memberId,
+        if (!player.userId && !player.guestUserId) return;
+        await this.checkPlayerBelongsToMatch({
+          player,
           groupId,
-          type: player.userId ? "user" : "guest",
+          matchId,
         });
         await this.checkPlayerNotAlreadyInMatch({
           matchId,
@@ -105,6 +104,28 @@ export class MatchTeamPlayersService {
         guestUserId: player.guestUserId,
       })),
     });
+  }
+
+  private async checkPlayerBelongsToMatch({
+    player,
+    groupId,
+    matchId,
+  }: {
+    player: MatchTeamPlayerDto;
+    groupId: string;
+    matchId: string;
+  }) {
+    if (player.userId) {
+      await this.userBelongsToGroupService.check({
+        memberId: player.userId,
+        groupId,
+      });
+    } else if (player.guestUserId) {
+      await this.matchGuestsService.checkIfGuestBelongsToMatch({
+        guestUserId: player.guestUserId,
+        matchId,
+      });
+    }
   }
 
   private checkNoDuplicatePlayersInPayload(

@@ -6,7 +6,7 @@ import { DatabaseModule } from "./shared/database/database.module";
 import { AuthGuard } from "./modules/auth/auth.guard";
 import { APP_GUARD } from "@nestjs/core";
 import { UsersModule } from "./modules/users/users.module";
-import { GuestUsersModule } from "./modules/guest-users/guest-users.module";
+import { MatchGuestsModule } from "./modules/match-guests/match-guests.module";
 import { GroupsModule } from "./modules/groups/groups.module";
 import { GroupMembersModule } from "./modules/group-members/group-members.module";
 import { GroupMatchesModule } from "./modules/group-matches/group-matches.module";
@@ -22,10 +22,10 @@ import { GroupPaymentsModule } from "./modules/group-payments/group-payments.mod
     DatabaseModule,
     AuthModule,
     UsersModule,
-    GuestUsersModule,
     GroupsModule,
     GroupMembersModule,
     GroupMatchesModule,
+    MatchGuestsModule,
     MatchPresencesModule,
     MatchTeamsModule,
     MatchTeamPlayersModule,

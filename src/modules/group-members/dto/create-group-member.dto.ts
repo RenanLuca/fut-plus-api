@@ -1,14 +1,6 @@
 import { GroupMemberType } from "@src/shared/enum/groupMemberType";
-import { PositionEnum } from "@src/shared/enum/positionEnum";
 import { UserRank } from "@src/shared/enum/userRank";
-import {
-  IsEnum,
-  IsIn,
-  IsNotEmpty,
-  IsOptional,
-  IsString,
-  IsUUID,
-} from "class-validator";
+import { IsEnum, IsIn, IsNotEmpty } from "class-validator";
 
 export class CreateGroupMemberDto {
   @IsNotEmpty()
@@ -21,10 +13,4 @@ export class CreateGroupMemberDto {
   @IsNotEmpty()
   @IsEnum(UserRank)
   rank!: UserRank;
-  @IsString()
-  @IsOptional()
-  name!: string;
-  @IsEnum(PositionEnum)
-  @IsOptional()
-  position!: PositionEnum;
 }

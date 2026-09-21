@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from "@nestjs/common";
 import { UpdateMatchPresenceDto } from "./dto/updateMatchPresence.dto";
 import { MatchPresencesRepository } from "@src/shared/database/repositories/match-presences.repository";
 import { GroupMembersRepository } from "@src/shared/database/repositories/group-members.repository";
+import { GuestUsersRepository } from "@src/shared/database/repositories/guest-users.repository";
 import { UserBelongsToGroupService } from "../groups/services/userBelongsToGroup.service";
 import { GroupMatchesService } from "../group-matches/services/group-matches.service";
 import { Position } from "../../../generated/prisma/client";
@@ -19,6 +20,7 @@ export class MatchPresencesService {
   constructor(
     private readonly matchPresencesRepository: MatchPresencesRepository,
     private readonly groupMembersRepository: GroupMembersRepository,
+    private readonly guestUsersRepository: GuestUsersRepository,
     private readonly userBelongsToGroupService: UserBelongsToGroupService,
     private readonly groupMatchesService: GroupMatchesService,
   ) {}
@@ -37,12 +39,11 @@ export class MatchPresencesService {
       matchId,
     });
 
-    const [members, presences] = await Promise.all([
+    const [members, guests, presences] = await Promise.all([
       this.groupMembersRepository.findMany({
         where: { groupId },
         select: {
           userId: true,
-          guestUserId: true,
           user: {
             select: {
               name: true,
@@ -50,14 +51,19 @@ export class MatchPresencesService {
               profilePicture: true,
             },
           },
-          guestUser: {
-            select: { name: true, position: true },
-          },
         },
+      }),
+      this.guestUsersRepository.findMany({
+        where: { groupMatchId: matchId },
+        select: { id: true, name: true, position: true },
       }),
       this.matchPresencesRepository.findMany({
         where: { groupMatchId: matchId },
-        select: { userId: true, guestUserId: true, isPresent: true },
+        select: {
+          userId: true,
+          guestUserId: true,
+          isPresent: true,
+        },
       }),
     ]);
 
@@ -73,25 +79,31 @@ export class MatchPresencesService {
     const declined: MatchPresenceMember[] = [];
     const pending: MatchPresenceMember[] = [];
 
-    for (const member of members) {
-      const memberId = member.userId ?? member.guestUserId;
-      const name = member.user?.name ?? member.guestUser?.name;
-      const position =
-        member.user?.position ?? member.guestUser?.position;
-      if (!memberId || !name || !position) continue;
-
-      const entry: MatchPresenceMember = {
-        id: memberId,
-        name,
-        position,
-        profilePicture: member.user?.profilePicture ?? null,
-        isGuest: !member.userId,
-      };
-
-      const isPresent = presenceByMember.get(memberId);
+    const classify = (entry: MatchPresenceMember) => {
+      const isPresent = presenceByMember.get(entry.id);
       if (isPresent === true) confirmed.push(entry);
       else if (isPresent === false) declined.push(entry);
       else pending.push(entry);
+    };
+
+    for (const member of members) {
+      classify({
+        id: member.userId,
+        name: member.user.name,
+        position: member.user.position,
+        profilePicture: member.user.profilePicture,
+        isGuest: false,
+      });
+    }
+
+    for (const guest of guests) {
+      classify({
+        id: guest.id,
+        name: guest.name,
+        position: guest.position,
+        profilePicture: null,
+        isGuest: true,
+      });
     }
 
     return { confirmed, declined, pending };

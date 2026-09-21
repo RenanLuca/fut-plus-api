@@ -86,7 +86,6 @@ export class GroupsService {
     await this.userBelongsToGroupService.check({
       memberId: newOwnerId,
       groupId,
-      type: "user",
     });
     return this.groupsRepository.transferOwnership({
       groupId,

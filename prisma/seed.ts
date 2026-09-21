@@ -1,5 +1,6 @@
 import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
+import { hash } from "bcryptjs";
 import {
   PrismaClient,
   FrequencyType,
@@ -10,8 +11,10 @@ import {
 } from "../generated/prisma/client";
 
 const OWNER_EMAIL = "renan@gmail.com";
+const DEMO_PASSWORD = "123456";
+const DEMO_GROUP_NAMES = ["Pelada de Sexta", "Pelada Mensal"];
 const BRAZIL_UTC_OFFSET_HOURS = 3;
-const TEAM_COLORS = ["#FFFFFF", "#000000", "#FF0000", "#0000FF"];
+const TEAM_COLORS = ["#FFFFFF", "#000000"];
 
 const adapter = new PrismaPg({
   connectionString: process.env.DATABASE_URL,
@@ -45,80 +48,136 @@ function atBrazilTime(
   );
 }
 
-const GUEST_PLAYERS: {
+const DEMO_PLAYERS: {
   name: string;
   position: Position;
   rank: Rank;
+  type: GroupMemberType;
 }[] = [
   {
     name: "Lucas Andrade",
     position: Position.GOALKEEPER,
     rank: Rank.BRASILEIRAO,
+    type: GroupMemberType.MONTHLY,
   },
   {
     name: "Vitor Lima",
     position: Position.GOALKEEPER,
     rank: Rank.CHAMPIONS_LEAGUE,
+    type: GroupMemberType.DAILY,
   },
   {
     name: "Pedro Silva",
     position: Position.DEFENDER,
     rank: Rank.CHAMPIONS_LEAGUE,
+    type: GroupMemberType.MONTHLY,
   },
   {
     name: "Gabriel Souza",
     position: Position.DEFENDER,
     rank: Rank.BRASILEIRAO,
+    type: GroupMemberType.MONTHLY,
   },
   {
     name: "Rafael Costa",
     position: Position.WINGER,
     rank: Rank.BALLON_DOR,
+    type: GroupMemberType.MONTHLY,
   },
   {
     name: "Bruno Alves",
     position: Position.WINGER,
     rank: Rank.CHAMPIONS_LEAGUE,
+    type: GroupMemberType.DAILY,
   },
   {
     name: "Thiago Nunes",
     position: Position.STRIKER,
     rank: Rank.BALLON_DOR,
+    type: GroupMemberType.MONTHLY,
   },
   {
     name: "Diego Martins",
     position: Position.STRIKER,
     rank: Rank.BRASILEIRAO,
+    type: GroupMemberType.DAILY,
   },
 ];
 
-async function findOrCreateGroup(params: {
+const DEMO_GUESTS: {
+  name: string;
+  position: Position;
+  rank: Rank;
+}[] = [
+  {
+    name: "Marcos Vieira",
+    position: Position.GOALKEEPER,
+    rank: Rank.BRASILEIRAO,
+  },
+  {
+    name: "André Ribeiro",
+    position: Position.DEFENDER,
+    rank: Rank.CHAMPIONS_LEAGUE,
+  },
+  {
+    name: "Felipe Barros",
+    position: Position.STRIKER,
+    rank: Rank.BRASILEIRAO,
+  },
+];
+
+type DemoUser = {
+  id: string;
+  type: GroupMemberType;
+  rank: Rank;
+};
+
+async function ensureDemoUsers(): Promise<DemoUser[]> {
+  const hashedPassword = await hash(DEMO_PASSWORD, 10);
+  const users: DemoUser[] = [];
+  for (const [index, player] of DEMO_PLAYERS.entries()) {
+    const email = `demo.jogador${index + 1}@futplus.dev`;
+    const user = await prisma.user.upsert({
+      where: { email },
+      update: {},
+      create: {
+        email,
+        name: player.name,
+        position: player.position,
+        hashedPassword,
+      },
+    });
+    users.push({
+      id: user.id,
+      type: player.type,
+      rank: player.rank,
+    });
+  }
+  return users;
+}
+
+async function resetDemoGroups(ownerId: string) {
+  const { count } = await prisma.group.deleteMany({
+    where: { ownerId, name: { in: DEMO_GROUP_NAMES } },
+  });
+  if (count > 0) {
+    console.log(
+      `${count} grupo(s) de demonstração antigos apagados.`,
+    );
+  }
+}
+
+async function createGroup(params: {
   ownerId: string;
   name: string;
   weekday: Weekday;
   hour: string;
   frequency: FrequencyType;
   valuePerUser: number;
+  members: DemoUser[];
 }) {
-  const existing = await prisma.group.findFirst({
-    where: { name: params.name, ownerId: params.ownerId },
-  });
-  if (existing) {
-    console.log(
-      `Grupo "${params.name}" já existe, reaproveitando.`,
-    );
-    return { group: existing, created: false };
-  }
-  const group = await prisma.group.create({
-    data: {
-      name: params.name,
-      ownerId: params.ownerId,
-      weekday: params.weekday,
-      hour: params.hour,
-      frequency: params.frequency,
-      valuePerUser: params.valuePerUser,
-    },
-  });
+  const { members, ...groupData } = params;
+  const group = await prisma.group.create({ data: groupData });
   await prisma.groupMember.create({
     data: {
       groupId: group.id,
@@ -126,41 +185,50 @@ async function findOrCreateGroup(params: {
       type: GroupMemberType.OWNER,
     },
   });
-  console.log(`Grupo "${params.name}" criado.`);
-  return { group, created: true };
-}
-
-async function addGuestMembers(groupId: string) {
-  const guestIds: string[] = [];
-  for (const guest of GUEST_PLAYERS) {
-    const guestUser = await prisma.guestUser.create({
-      data: { name: guest.name, position: guest.position },
-    });
+  for (const member of members) {
     await prisma.groupMember.create({
       data: {
-        groupId,
-        guestUserId: guestUser.id,
-        type: GroupMemberType.GUEST,
-        rank: guest.rank,
+        groupId: group.id,
+        userId: member.id,
+        type: member.type,
+        rank: member.rank,
       },
     });
-    guestIds.push(guestUser.id);
   }
-  return guestIds;
+  console.log(`Grupo "${params.name}" criado.`);
+  return group;
 }
 
-async function seedEventualGroup(ownerId: string) {
-  const { group, created } = await findOrCreateGroup({
+async function addConfirmedGuest(
+  groupMatchId: string,
+  guest: (typeof DEMO_GUESTS)[number],
+) {
+  const guestUser = await prisma.guestUser.create({
+    data: { groupMatchId, ...guest },
+  });
+  await prisma.groupMatchPresence.create({
+    data: {
+      groupMatchId,
+      guestUserId: guestUser.id,
+      isPresent: true,
+    },
+  });
+  return guestUser;
+}
+
+async function seedEventualGroup(
+  ownerId: string,
+  demoUsers: DemoUser[],
+) {
+  const group = await createGroup({
     ownerId,
     name: "Pelada de Sexta",
     weekday: Weekday.FRIDAY,
     hour: "20:00",
     frequency: FrequencyType.EVENTUAL,
     valuePerUser: 20,
+    members: demoUsers,
   });
-  if (!created) return;
-
-  const guestIds = await addGuestMembers(group.id);
 
   const matchADate = atBrazilTime(
     nextWeekday(new Date(), 5),
@@ -170,7 +238,6 @@ async function seedEventualGroup(ownerId: string) {
   const matchA = await prisma.groupMatch.create({
     data: { groupId: group.id, matchDate: matchADate },
   });
-
   await prisma.groupMatchPresence.create({
     data: {
       groupMatchId: matchA.id,
@@ -178,12 +245,11 @@ async function seedEventualGroup(ownerId: string) {
       isPresent: true,
     },
   });
-  const [g1, g2, g3, g4, g5, g6] = guestIds;
-  for (const guestUserId of [g1, g2, g3, g4, g5]) {
+  for (const user of demoUsers.slice(0, 5)) {
     await prisma.groupMatchPresence.create({
       data: {
         groupMatchId: matchA.id,
-        guestUserId,
+        userId: user.id,
         isPresent: true,
       },
     });
@@ -191,12 +257,15 @@ async function seedEventualGroup(ownerId: string) {
   await prisma.groupMatchPresence.create({
     data: {
       groupMatchId: matchA.id,
-      guestUserId: g6,
+      userId: demoUsers[5].id,
       isPresent: false,
     },
   });
+  for (const guest of DEMO_GUESTS.slice(0, 2)) {
+    await addConfirmedGuest(matchA.id, guest);
+  }
   console.log(
-    `Partida A (${matchADate.toISOString()}) criada: 6 confirmados, 1 recusado, 2 pendentes, sem times.`,
+    `Partida A (${matchADate.toISOString()}): 8 confirmados (2 convidados), 1 recusou, 2 pendentes, sem times.`,
   );
 
   const matchBDate = new Date(matchADate);
@@ -204,80 +273,67 @@ async function seedEventualGroup(ownerId: string) {
   const matchB = await prisma.groupMatch.create({
     data: { groupId: group.id, matchDate: matchBDate },
   });
-
-  const allConfirmedIds: {
-    userId?: string;
-    guestUserId?: string;
-  }[] = [
-    { userId: ownerId },
-    ...guestIds.map((guestUserId) => ({ guestUserId })),
+  const confirmedUserIds = [
+    ownerId,
+    ...demoUsers.map((u) => u.id),
   ];
-  for (const member of allConfirmedIds) {
+  for (const userId of confirmedUserIds) {
     await prisma.groupMatchPresence.create({
-      data: {
-        groupMatchId: matchB.id,
-        ...member,
-        isPresent: true,
-      },
+      data: { groupMatchId: matchB.id, userId, isPresent: true },
     });
   }
+  const guestIds: string[] = [];
+  for (const guest of DEMO_GUESTS) {
+    const guestUser = await addConfirmedGuest(matchB.id, guest);
+    guestIds.push(guestUser.id);
+  }
 
-  const teamA = await prisma.matchTeam.create({
-    data: {
-      groupMatchId: matchB.id,
-      name: "Time 1",
-      color: TEAM_COLORS[0],
-    },
-  });
-  const teamB = await prisma.matchTeam.create({
-    data: {
-      groupMatchId: matchB.id,
-      name: "Time 2",
-      color: TEAM_COLORS[1],
-    },
-  });
+  const teams = await Promise.all(
+    TEAM_COLORS.map((color, index) =>
+      prisma.matchTeam.create({
+        data: {
+          groupMatchId: matchB.id,
+          name: `Time ${index + 1}`,
+          color,
+        },
+      }),
+    ),
+  );
+  const players = [
+    ...confirmedUserIds.map((userId) => ({ userId })),
+    ...guestIds.map((guestUserId) => ({ guestUserId })),
+  ];
   await Promise.all(
-    allConfirmedIds.map((member, index) =>
+    players.map((player, index) =>
       prisma.matchTeamPlayer.create({
         data: {
-          matchTeamId: index % 2 === 0 ? teamA.id : teamB.id,
+          matchTeamId: teams[index % teams.length].id,
           groupMatchId: matchB.id,
-          ...member,
+          ...player,
         },
       }),
     ),
   );
   console.log(
-    `Partida B (${matchBDate.toISOString()}) criada: todos confirmados, times já gerados.`,
+    `Partida B (${matchBDate.toISOString()}): todos confirmados (3 convidados), times já gerados.`,
   );
 }
 
-async function seedMonthlyGroup(ownerId: string) {
-  const { group, created } = await findOrCreateGroup({
+async function seedMonthlyGroup(
+  ownerId: string,
+  demoUsers: DemoUser[],
+) {
+  await createGroup({
     ownerId,
     name: "Pelada Mensal",
     weekday: Weekday.MONDAY,
     hour: "19:00",
     frequency: FrequencyType.MONTHLY,
     valuePerUser: 25,
+    members: demoUsers.slice(0, 4),
   });
-  if (!created) return;
-
-  for (const guest of GUEST_PLAYERS.slice(0, 4)) {
-    const guestUser = await prisma.guestUser.create({
-      data: { name: guest.name, position: guest.position },
-    });
-    await prisma.groupMember.create({
-      data: {
-        groupId: group.id,
-        guestUserId: guestUser.id,
-        type: GroupMemberType.GUEST,
-        rank: guest.rank,
-      },
-    });
-  }
   console.log(
-    "Grupo mensal criado sem partidas (elas são geradas pelo cron automaticamente).",
+    "Grupo mensal sem partidas (elas são geradas pelo cron automaticamente).",
   );
 }
 
@@ -293,10 +349,14 @@ async function main() {
     return;
   }
 
-  await seedEventualGroup(owner.id);
-  await seedMonthlyGroup(owner.id);
+  const demoUsers = await ensureDemoUsers();
+  await resetDemoGroups(owner.id);
+  await seedEventualGroup(owner.id, demoUsers);
+  await seedMonthlyGroup(owner.id, demoUsers);
 
-  console.log("Seed concluído.");
+  console.log(
+    `Seed concluído. Contas de demonstração: demo.jogador1..${DEMO_PLAYERS.length}@futplus.dev (senha ${DEMO_PASSWORD}).`,
+  );
 }
 
 main()

@@ -39,7 +39,6 @@ enum FrequencyType {
 enum GroupMemberType {
   MONTHLY
   DAILY
-  GUEST
   OWNER
 }
 
@@ -64,13 +63,15 @@ model User {
 }
 
 model GuestUser {
-  id        String   @id @default(uuid())
-  name      String
-  position  Position
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id           String   @id @default(uuid())
+  name         String
+  position     Position
+  rank         Rank
+  groupMatchId String   @map("group_match_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
-  groupMembers        GroupMember[]
+  groupMatch          GroupMatch           @relation(fields: [groupMatchId], references: [id], onDelete: Cascade)
   groupMatchPresences GroupMatchPresence[]
   matchTeamPlayers    MatchTeamPlayer[]
 
@@ -98,21 +99,18 @@ model Group {
 }
 
 model GroupMember {
-  id          String          @id @default(uuid())
-  groupId     String          @map("group_id")
-  userId      String?         @map("user_id")
-  rank        Rank?
-  type        GroupMemberType
-  guestUserId String?         @map("guest_user_id")
-  createdAt   DateTime        @default(now()) @map("created_at")
-  updatedAt   DateTime        @updatedAt @map("updated_at")
+  id        String          @id @default(uuid())
+  groupId   String          @map("group_id")
+  userId    String          @map("user_id")
+  rank      Rank?
+  type      GroupMemberType
+  createdAt DateTime        @default(now()) @map("created_at")
+  updatedAt DateTime        @updatedAt @map("updated_at")
 
-  guestUser GuestUser? @relation(fields: [guestUserId], references: [id], onDelete: Cascade)
-  group     Group      @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  user      User?      @relation(fields: [userId], references: [id])
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id])
 
   @@unique([groupId, userId])
-  @@unique([groupId, guestUserId])
   @@map("group_members")
 }
 
@@ -139,6 +137,7 @@ model GroupMatch {
   matchTeams          MatchTeam[]
   matchTeamPlayers    MatchTeamPlayer[]
   groupPayments       GroupPayment[]
+  guestUsers          GuestUser[]
 
   @@unique([groupId, matchDate])
   @@map("group_matches")

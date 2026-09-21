@@ -4,6 +4,7 @@ import { UpdateMatchTeamDto } from "./dto/update-match-team.dto";
 import { GenerateMatchTeamsDto } from "./dto/generate-match-teams.dto";
 import { MatchTeamsRepository } from "@src/shared/database/repositories/match-teams.repository";
 import { GroupMembersRepository } from "@src/shared/database/repositories/group-members.repository";
+import { GuestUsersRepository } from "@src/shared/database/repositories/guest-users.repository";
 import { UserBelongsToGroupService } from "../groups/services/userBelongsToGroup.service";
 import { balanceMembersIntoTeams } from "./utils/match-teams-balancer";
 import { TEAM_COLORS } from "./constants/teamColors";
@@ -14,6 +15,7 @@ export class MatchTeamsService {
   constructor(
     private readonly matchTeamsRepository: MatchTeamsRepository,
     private readonly groupMembersRepository: GroupMembersRepository,
+    private readonly guestUsersRepository: GuestUsersRepository,
     private readonly groupMatchesService: GroupMatchesService,
     private readonly userBelongsToGroupService: UserBelongsToGroupService,
   ) {}
@@ -150,51 +152,46 @@ export class MatchTeamsService {
 
     const { teamCount } = generateMatchTeamsDto;
 
-    const confirmedMembers =
-      await this.groupMembersRepository.findMany({
-        where: {
-          groupId,
-          OR: [
-            {
-              user: {
-                groupMatchPresences: {
-                  some: {
-                    groupMatchId: matchId,
-                    isPresent: true,
-                  },
-                },
+    const [confirmedMembers, confirmedGuests] =
+      await Promise.all([
+        this.groupMembersRepository.findMany({
+          where: {
+            groupId,
+            user: {
+              groupMatchPresences: {
+                some: { groupMatchId: matchId, isPresent: true },
               },
             },
-            {
-              guestUser: {
-                groupMatchPresences: {
-                  some: {
-                    groupMatchId: matchId,
-                    isPresent: true,
-                  },
-                },
-              },
-            },
-          ],
-        },
-        select: {
-          userId: true,
-          guestUserId: true,
-          rank: true,
-          user: { select: { position: true } },
-          guestUser: { select: { position: true } },
-        },
-      });
+          },
+          select: {
+            userId: true,
+            rank: true,
+            user: { select: { position: true } },
+          },
+        }),
+        this.guestUsersRepository.findMany({
+          where: {
+            groupMatchId: matchId,
+            groupMatchPresences: { some: { isPresent: true } },
+          },
+          select: { id: true, rank: true, position: true },
+        }),
+      ]);
 
-    const membersForBalancing = confirmedMembers.map(
-      (member) => ({
+    const membersForBalancing = [
+      ...confirmedMembers.map((member) => ({
         userId: member.userId,
-        guestUserId: member.guestUserId,
+        guestUserId: null,
         rank: member.rank,
-        position: (member.user?.position ??
-          member.guestUser?.position)!,
-      }),
-    );
+        position: member.user.position,
+      })),
+      ...confirmedGuests.map((guest) => ({
+        userId: null,
+        guestUserId: guest.id,
+        rank: guest.rank,
+        position: guest.position,
+      })),
+    ];
 
     const teamsAssignments = balanceMembersIntoTeams(
       membersForBalancing,

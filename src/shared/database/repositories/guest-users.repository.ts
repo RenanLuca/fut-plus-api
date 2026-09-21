@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import {
-  GroupMemberType,
+  Position,
   Prisma,
   Rank,
 } from "../../../../generated/prisma/client";
@@ -9,37 +9,42 @@ import { PrismaService } from "../prisma.service";
 @Injectable()
 export class GuestUsersRepository {
   constructor(private readonly prisma: PrismaService) {}
-  async create(createGuestUserDto: Prisma.GuestUserCreateArgs) {
-    return this.prisma.guestUser.create(createGuestUserDto);
-  }
-  async createAndConnectToGroup(
-    createGuestUserDto: Prisma.GuestUserUncheckedCreateInput,
-    groupId: string,
-    rank?: Rank,
-  ) {
+
+  async createConfirmedForMatch({
+    groupMatchId,
+    name,
+    position,
+    rank,
+  }: {
+    groupMatchId: string;
+    name: string;
+    position: Position;
+    rank: Rank;
+  }) {
     return this.prisma.$transaction(async (tx) => {
       const guestUser = await tx.guestUser.create({
-        data: createGuestUserDto,
+        data: { groupMatchId, name, position, rank },
       });
-      await tx.groupMember.create({
+      await tx.groupMatchPresence.create({
         data: {
+          groupMatchId,
           guestUserId: guestUser.id,
-          groupId,
-          rank,
-          type: GroupMemberType.GUEST,
+          isPresent: true,
         },
       });
-
-      return { ...guestUser, groupId, rank };
+      return guestUser;
     });
   }
-  async findUnique(
-    findUniqueGuestUserDto: Prisma.GuestUserFindUniqueArgs,
+
+  async findMany<T extends Prisma.GuestUserFindManyArgs>(
+    findManyGuestUserDto: Prisma.SelectSubset<
+      T,
+      Prisma.GuestUserFindManyArgs
+    >,
   ) {
-    return this.prisma.guestUser.findUnique(
-      findUniqueGuestUserDto,
-    );
+    return this.prisma.guestUser.findMany(findManyGuestUserDto);
   }
+
   async findFirst(
     findFirstGuestUserDto: Prisma.GuestUserFindFirstArgs,
   ) {

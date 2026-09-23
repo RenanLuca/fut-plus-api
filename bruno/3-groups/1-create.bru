@@ -24,7 +24,8 @@ body:json {
     "weekday": "FRIDAY",
     "hour": "20:00",
     "frequency": "MONTHLY",
-    "valuePerUser": 25
+    "valuePerUser": 25,
+    "rank": "BRASILEIRAO"
   }
 }
 
@@ -46,4 +47,7 @@ docs {
   Valores válidos de weekday: SUNDAY, MONDAY, TUESDAY, WEDNESDAY,
   THURSDAY, FRIDAY, SATURDAY.
   Valores válidos de frequency: EVENTUAL, MONTHLY.
+  Valores válidos de rank: BRASILEIRAO, CHAMPIONS_LEAGUE, BALLON_DOR
+  — obrigatório, vira o rank do GroupMember do dono (usado pra
+  ordenar jogadores por rank nas telas de partida).
 }

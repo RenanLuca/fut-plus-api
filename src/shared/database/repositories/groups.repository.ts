@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import {
   GroupMemberType,
   Prisma,
+  Rank,
 } from "../../../../generated/prisma/client";
 import { PrismaService } from "../prisma.service";
 
@@ -14,6 +15,7 @@ export class GroupsRepository {
   async createWithOwner(
     createGroupDto: Prisma.GroupUncheckedCreateInput,
     ownerId: string,
+    rank: Rank,
   ) {
     return this.prisma.$transaction(async (tx) => {
       const group = await tx.group.create({
@@ -24,6 +26,7 @@ export class GroupsRepository {
           userId: ownerId,
           groupId: group.id,
           type: GroupMemberType.OWNER,
+          rank,
         },
       });
       return group;

@@ -1,4 +1,5 @@
 import { FrequencyType } from "@src/shared/enum/FrequencyType";
+import { UserRank } from "@src/shared/enum/userRank";
 import { Weekday } from "../../../shared/enum/weekday";
 import {
   IsEnum,
@@ -29,4 +30,8 @@ export class CreateGroupDto {
   @IsNotEmpty()
   @IsNumber()
   valuePerUser!: number;
+
+  @IsEnum(UserRank)
+  @IsNotEmpty()
+  rank!: UserRank;
 }

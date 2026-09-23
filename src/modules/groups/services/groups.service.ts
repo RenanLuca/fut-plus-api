@@ -18,9 +18,11 @@ export class GroupsService {
     private readonly userBelongsToGroupService: UserBelongsToGroupService,
   ) {}
   async create(createGroupDto: CreateGroupDto, ownerId: string) {
+    const { rank, ...groupData } = createGroupDto;
     return this.groupsRepository.createWithOwner(
-      { ...createGroupDto, ownerId },
+      { ...groupData, ownerId },
       ownerId,
+      rank,
     );
   }
 

@@ -8,6 +8,10 @@ import { SigninDto } from "../dto/signin.dto";
 import { SignupDto } from "../dto/signup.dto";
 import { VerifyEmailDto } from "../dto/verifyEmail.dto";
 import { ResendVerificationDto } from "../dto/resendVerification.dto";
+import { ForgotPasswordDto } from "../dto/forgotPassword.dto";
+import { ResetPasswordDto } from "../dto/resetPassword.dto";
+import { resetPasswordTemplate } from "@src/modules/mail/templates/reset-password.template";
+import { passwordChangedTemplate } from "@src/modules/mail/templates/password-changed.template";
 import { UsersRepository } from "@src/shared/database/repositories/users.repository";
 import { compare, hash } from "bcryptjs";
 import { JwtService } from "@nestjs/jwt";
@@ -16,7 +20,10 @@ import { MailService } from "@src/modules/mail/mail.service";
 import { verifyEmailTemplate } from "@src/modules/mail/templates/verify-email.template";
 import { welcomeTemplate } from "@src/modules/mail/templates/welcome.template";
 import { VerificationTokenType } from "../../../../generated/prisma/client";
-import { EMAIL_VERIFICATION_TOKEN_TTL_MS } from "../constants/tokenTtl";
+import {
+  EMAIL_VERIFICATION_TOKEN_TTL_MS,
+  PASSWORD_RESET_TOKEN_TTL_MS,
+} from "../constants/tokenTtl";
 import { VerificationTokensService } from "./verification-tokens.service";
 
 @Injectable()
@@ -133,6 +140,53 @@ export class AuthService {
       message:
         "If the account exists and is unverified, an email was sent",
     };
+  }
+
+  async forgotPassword({ email }: ForgotPasswordDto) {
+    const user = await this.usersRepository.findUnique({
+      where: { email },
+    });
+    if (user) {
+      const token = await this.verificationTokensService.issue({
+        userId: user.id,
+        type: VerificationTokenType.PASSWORD_RESET,
+        ttlMs: PASSWORD_RESET_TOKEN_TTL_MS,
+      });
+
+      void this.mailService.send({
+        to: user.email,
+        ...resetPasswordTemplate({
+          name: user.name,
+          url: `${env.frontendUrl}/reset-password?token=${token}`,
+        }),
+      });
+    }
+
+    // Same answer whether or not the account exists (see resendVerification).
+    return {
+      message: "If the account exists, a reset email was sent",
+    };
+  }
+
+  async resetPassword({ token, password }: ResetPasswordDto) {
+    const { userId } =
+      await this.verificationTokensService.consume(
+        token,
+        VerificationTokenType.PASSWORD_RESET,
+      );
+
+    const hashedPassword = await this.hashPassword(password, 10);
+    const user = await this.usersRepository.update({
+      where: { id: userId },
+      data: { hashedPassword, passwordChangedAt: new Date() },
+    });
+
+    void this.mailService.send({
+      to: user.email,
+      ...passwordChangedTemplate({ name: user.name }),
+    });
+
+    return { message: "Password reset" };
   }
 
   async generateAccessToken(userId: string) {

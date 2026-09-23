@@ -12,6 +12,8 @@ import { SigninDto } from "./dto/signin.dto";
 import { SignupDto } from "./dto/signup.dto";
 import { VerifyEmailDto } from "./dto/verifyEmail.dto";
 import { ResendVerificationDto } from "./dto/resendVerification.dto";
+import { ForgotPasswordDto } from "./dto/forgotPassword.dto";
+import { ResetPasswordDto } from "./dto/resetPassword.dto";
 import { IsPublic } from "@src/shared/decorators/IsPublic";
 
 // Routes that send an email get a tighter limit than the module default,
@@ -52,5 +54,18 @@ export class AuthController {
     return this.authService.resendVerification(
       resendVerificationDto,
     );
+  }
+
+  @Throttle(EMAIL_SENDING_THROTTLE)
+  @HttpCode(HttpStatus.OK)
+  @Post("forgot-password")
+  forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
+    return this.authService.forgotPassword(forgotPasswordDto);
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @Post("reset-password")
+  resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
+    return this.authService.resetPassword(resetPasswordDto);
   }
 }

@@ -48,23 +48,23 @@ function atBrazilTime(
   );
 }
 
-const DEMO_PLAYERS: {
+type PlayerSeed = {
   name: string;
   position: Position;
   rank: Rank;
   type: GroupMemberType;
-}[] = [
+};
+
+// Núcleo balanceado: 1 goleiro aqui + o dono (goleiro na conta real,
+// fora do controle do seed) = 2 goleiros no total; 2 de cada posição de
+// linha. É este grupo que fica "todos confirmados" na Partida B, usado
+// pra demonstrar geração de times — por isso precisa ficar equilibrado.
+const DEMO_PLAYERS: PlayerSeed[] = [
   {
     name: "Lucas Andrade",
     position: Position.GOALKEEPER,
     rank: Rank.BRASILEIRAO,
     type: GroupMemberType.MONTHLY,
-  },
-  {
-    name: "Vitor Lima",
-    position: Position.GOALKEEPER,
-    rank: Rank.CHAMPIONS_LEAGUE,
-    type: GroupMemberType.DAILY,
   },
   {
     name: "Pedro Silva",
@@ -104,6 +104,30 @@ const DEMO_PLAYERS: {
   },
 ];
 
+// Só aparecem pendentes/recusados na Partida A, pra dar variedade à tela
+// de presença — não entram no roster balanceado acima nem na Partida B
+// ("todos confirmados").
+const DEMO_EXTRA_PLAYERS: PlayerSeed[] = [
+  {
+    name: "Vitor Lima",
+    position: Position.DEFENDER,
+    rank: Rank.CHAMPIONS_LEAGUE,
+    type: GroupMemberType.DAILY,
+  },
+  {
+    name: "Igor Martins",
+    position: Position.STRIKER,
+    rank: Rank.BRASILEIRAO,
+    type: GroupMemberType.DAILY,
+  },
+  {
+    name: "Caio Ferreira",
+    position: Position.DEFENDER,
+    rank: Rank.CHAMPIONS_LEAGUE,
+    type: GroupMemberType.MONTHLY,
+  },
+];
+
 const DEMO_GUESTS: {
   name: string;
   position: Position;
@@ -111,7 +135,7 @@ const DEMO_GUESTS: {
 }[] = [
   {
     name: "Marcos Vieira",
-    position: Position.GOALKEEPER,
+    position: Position.WINGER,
     rank: Rank.BRASILEIRAO,
   },
   {
@@ -156,18 +180,23 @@ async function addMonthlyPayment(
 
 type DemoUser = {
   id: string;
+  name: string;
   type: GroupMemberType;
   rank: Rank;
 };
 
 async function ensureDemoUsers(): Promise<DemoUser[]> {
   const hashedPassword = await hash(DEMO_PASSWORD, 10);
+  const allPlayers = [...DEMO_PLAYERS, ...DEMO_EXTRA_PLAYERS];
   const users: DemoUser[] = [];
-  for (const [index, player] of DEMO_PLAYERS.entries()) {
+  for (const [index, player] of allPlayers.entries()) {
     const email = `demo.jogador${index + 1}@futplus.dev`;
     const user = await prisma.user.upsert({
       where: { email },
-      update: {},
+      update: {
+        name: player.name,
+        position: player.position,
+      },
       create: {
         email,
         name: player.name,
@@ -177,6 +206,7 @@ async function ensureDemoUsers(): Promise<DemoUser[]> {
     });
     users.push({
       id: user.id,
+      name: player.name,
       type: player.type,
       rank: player.rank,
     });
@@ -246,7 +276,8 @@ async function addConfirmedGuest(
 
 async function seedEventualGroup(
   ownerId: string,
-  demoUsers: DemoUser[],
+  coreUsers: DemoUser[],
+  extraUsers: DemoUser[],
 ) {
   const group = await createGroup({
     ownerId,
@@ -255,7 +286,7 @@ async function seedEventualGroup(
     hour: "20:00",
     frequency: FrequencyType.EVENTUAL,
     valuePerUser: 20,
-    members: demoUsers,
+    members: [...coreUsers, ...extraUsers],
   });
 
   const matchADate = atBrazilTime(
@@ -273,7 +304,7 @@ async function seedEventualGroup(
       isPresent: true,
     },
   });
-  for (const user of demoUsers.slice(0, 5)) {
+  for (const user of coreUsers.slice(0, 5)) {
     await prisma.groupMatchPresence.create({
       data: {
         groupMatchId: matchA.id,
@@ -285,15 +316,24 @@ async function seedEventualGroup(
   await prisma.groupMatchPresence.create({
     data: {
       groupMatchId: matchA.id,
-      userId: demoUsers[5].id,
+      userId: coreUsers[5].id,
       isPresent: false,
     },
   });
+  // coreUsers[6] fica pendente (sem registro de presença).
+  await prisma.groupMatchPresence.create({
+    data: {
+      groupMatchId: matchA.id,
+      userId: extraUsers[0].id,
+      isPresent: false,
+    },
+  });
+  // extraUsers[1] e extraUsers[2] ficam pendentes (sem registro).
   for (const guest of DEMO_GUESTS.slice(0, 2)) {
     await addConfirmedGuest(matchA.id, guest);
   }
   console.log(
-    `Partida A (${matchADate.toISOString()}): 8 confirmados (2 convidados), 1 recusou, 2 pendentes, sem times.`,
+    `Partida A (${matchADate.toISOString()}): 8 confirmados (2 convidados), 2 recusaram, 3 pendentes, sem times.`,
   );
 
   const matchBDate = new Date(matchADate);
@@ -303,7 +343,7 @@ async function seedEventualGroup(
   });
   const confirmedUserIds = [
     ownerId,
-    ...demoUsers.map((u) => u.id),
+    ...coreUsers.map((u) => u.id),
   ];
   for (const userId of confirmedUserIds) {
     await prisma.groupMatchPresence.create({
@@ -343,23 +383,35 @@ async function seedEventualGroup(
     ),
   );
   console.log(
-    `Partida B (${matchBDate.toISOString()}): todos confirmados (3 convidados), times já gerados.`,
+    `Partida B (${matchBDate.toISOString()}): todos confirmados (núcleo balanceado + 3 convidados), times já gerados. Os 3 jogadores extras (pendentes/recusados na Partida A) não entram aqui.`,
   );
 
-  await seedPastMatchesAndPayments(
-    group.id,
-    matchADate,
-    demoUsers,
-  );
+  await seedPastMatchesAndPayments(group.id, matchADate, [
+    ...coreUsers,
+    ...extraUsers,
+  ]);
 }
 
 async function seedPastMatchesAndPayments(
   groupId: string,
   matchADate: Date,
-  demoUsers: DemoUser[],
+  allUsers: DemoUser[],
 ) {
-  const [lucas, vitor, pedro, gabriel, , bruno, , diego] =
-    demoUsers;
+  const byName = (name: string): DemoUser => {
+    const user = allUsers.find((u) => u.name === name);
+    if (!user) {
+      throw new Error(
+        `Demo player "${name}" not found in seed data`,
+      );
+    }
+    return user;
+  };
+  const lucas = byName("Lucas Andrade");
+  const vitor = byName("Vitor Lima");
+  const pedro = byName("Pedro Silva");
+  const gabriel = byName("Gabriel Souza");
+  const bruno = byName("Bruno Alves");
+  const diego = byName("Diego Martins");
 
   const pastMatchDate = new Date(matchADate);
   pastMatchDate.setUTCDate(pastMatchDate.getUTCDate() - 14);
@@ -410,7 +462,7 @@ async function seedPastMatchesAndPayments(
 
 async function seedMonthlyGroup(
   ownerId: string,
-  demoUsers: DemoUser[],
+  coreUsers: DemoUser[],
 ) {
   const group = await createGroup({
     ownerId,
@@ -419,9 +471,9 @@ async function seedMonthlyGroup(
     hour: "19:00",
     frequency: FrequencyType.MONTHLY,
     valuePerUser: 25,
-    members: demoUsers.slice(0, 4),
+    members: coreUsers.slice(0, 4),
   });
-  await addMonthlyPayment(group.id, demoUsers[0].id, 25);
+  await addMonthlyPayment(group.id, coreUsers[0].id, 25);
   console.log(
     "Grupo mensal sem partidas (elas são geradas pelo cron automaticamente).",
   );
@@ -440,12 +492,15 @@ async function main() {
   }
 
   const demoUsers = await ensureDemoUsers();
+  const coreUsers = demoUsers.slice(0, DEMO_PLAYERS.length);
+  const extraUsers = demoUsers.slice(DEMO_PLAYERS.length);
+
   await resetDemoGroups(owner.id);
-  await seedEventualGroup(owner.id, demoUsers);
-  await seedMonthlyGroup(owner.id, demoUsers);
+  await seedEventualGroup(owner.id, coreUsers, extraUsers);
+  await seedMonthlyGroup(owner.id, coreUsers);
 
   console.log(
-    `Seed concluído. Contas de demonstração: demo.jogador1..${DEMO_PLAYERS.length}@futplus.dev (senha ${DEMO_PASSWORD}).`,
+    `Seed concluído. Contas de demonstração: demo.jogador1..${demoUsers.length}@futplus.dev (senha ${DEMO_PASSWORD}).`,
   );
 }
 

@@ -196,12 +196,14 @@ async function ensureDemoUsers(): Promise<DemoUser[]> {
       update: {
         name: player.name,
         position: player.position,
+        emailVerifiedAt: new Date(),
       },
       create: {
         email,
         name: player.name,
         position: player.position,
         hashedPassword,
+        emailVerifiedAt: new Date(),
       },
     });
     users.push({
@@ -489,6 +491,13 @@ async function main() {
     );
     process.exitCode = 1;
     return;
+  }
+
+  if (!owner.emailVerifiedAt) {
+    await prisma.user.update({
+      where: { id: owner.id },
+      data: { emailVerifiedAt: new Date() },
+    });
   }
 
   const demoUsers = await ensureDemoUsers();

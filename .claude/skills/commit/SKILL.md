@@ -18,7 +18,8 @@ commits, not one giant commit.
    match creation endpoint", not "added" or "adding"). No fluff, no
    explanations in the subject line. One line is enough unless a commit truly
    needs a short body to explain why, not what.
-5. Show me each proposed commit (files + message) before creating it.
+5. Do NOT ask for confirmation before committing. Create the commits directly,
+   then show a short summary afterwards (files + message per commit).
 6. If it's genuinely unclear how to split the changes into features, ask me
    instead of guessing.
 7. Never add a "Co-Authored-By" line or any AI attribution/signature to the

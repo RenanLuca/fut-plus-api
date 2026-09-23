@@ -10,11 +10,26 @@ class Env {
   @IsString()
   @IsNotEmpty()
   databaseUrl!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  resendApiKey!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  mailFrom!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  frontendUrl!: string;
 }
 
 const env: Env = plainToInstance(Env, {
   jwtSecret: process.env.JWT_SECRET,
   databaseUrl: process.env.DATABASE_URL,
+  resendApiKey: process.env.RESEND_API_KEY,
+  mailFrom: process.env.MAIL_FROM,
+  frontendUrl: process.env.FRONTEND_URL?.replace(/\/+$/, ""),
 });
 
 const errors = validateSync(env);

@@ -1,6 +1,8 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { ScheduleModule } from "@nestjs/schedule";
+import { ThrottlerModule } from "@nestjs/throttler";
+import { MailModule } from "./modules/mail/mail.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { DatabaseModule } from "./shared/database/database.module";
 import { AuthGuard } from "./modules/auth/auth.guard";
@@ -20,6 +22,8 @@ import { GroupPaymentsModule } from "./modules/group-payments/group-payments.mod
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     ScheduleModule.forRoot(),
+    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 10 }]),
+    MailModule,
     DatabaseModule,
     AuthModule,
     UsersModule,

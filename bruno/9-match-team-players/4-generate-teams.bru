@@ -20,24 +20,35 @@ auth:bearer {
 
 body:json {
   {
-    "teamCount": 2
+    "playersPerTeam": 5
   }
 }
 
 tests {
-  test("deve apagar os times antigos e recriar 2 times distribuindo os confirmados", function() {
+  test("deve apagar os times antigos e recriar times distribuindo os confirmados", function() {
     expect(res.getStatus()).to.equal(201);
     expect(res.getBody()).to.be.an('array');
-    expect(res.getBody().length).to.equal(2);
+    expect(res.getBody().length).to.be.at.least(2);
   });
 }
 
 docs {
   Protegido por GroupOwnerGuard. Apaga todos os MatchTeam existentes
   dessa partida (incluindo o time usado nos requests anteriores desta
-  pasta, com o roster montado manualmente) e recria do zero: teamCount
-  times, distribuindo quem confirmou presença
-  (GroupMatchPresence.isPresent: true) entre eles por posição/rank.
+  pasta, com o roster montado manualmente) e recria do zero.
+
+  O body manda playersPerTeam (jogadores de LINHA por time), não a
+  quantidade de times — o backend calcula:
+  teamCount = max(2, round(jogadoresDeLinhaConfirmados / playersPerTeam))
+
+  Goleiros (Position.GOALKEEPER) não entram nessa conta: são
+  distribuídos 1 por time em round-robin simples, à parte do
+  balanceamento por rank (pode sobrar time sem goleiro ou com mais de
+  um). Os jogadores de linha são ordenados só por rank e distribuídos
+  em snake draft direto nos teamCount times — posição deixou de ser
+  critério de agrupamento, tamanho igual dos times tem prioridade.
+
+  Se sobrarem menos de 2 confirmados de linha, o request falha com 400.
 
   Roda por último de propósito, depois de "Replace all match team
   players" / "Add players" / "Add duplicate player" — como esse request

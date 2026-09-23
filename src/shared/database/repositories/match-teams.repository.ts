@@ -1,5 +1,8 @@
 import { Injectable } from "@nestjs/common";
-import { MatchTeam, Prisma } from "../../../../generated/prisma/client";
+import {
+  MatchTeam,
+  Prisma,
+} from "../../../../generated/prisma/client";
 import { PrismaService } from "../prisma.service";
 
 @Injectable()
@@ -8,20 +11,28 @@ export class MatchTeamsRepository {
   async create(createMatchTeamDto: Prisma.MatchTeamCreateArgs) {
     return this.prisma.matchTeam.create(createMatchTeamDto);
   }
-  async findAll(
-    findAllMatchTeamsDto: Prisma.MatchTeamFindManyArgs,
+  async findAll<T extends Prisma.MatchTeamFindManyArgs>(
+    findAllMatchTeamsDto: Prisma.SelectSubset<
+      T,
+      Prisma.MatchTeamFindManyArgs
+    >,
   ) {
     return this.prisma.matchTeam.findMany(findAllMatchTeamsDto);
   }
-  async findOne(
-    findOneMatchTeamDto: Prisma.MatchTeamFindUniqueArgs,
+  async findOne<T extends Prisma.MatchTeamFindUniqueArgs>(
+    findOneMatchTeamDto: Prisma.SelectSubset<
+      T,
+      Prisma.MatchTeamFindUniqueArgs
+    >,
   ) {
     return this.prisma.matchTeam.findUnique(findOneMatchTeamDto);
   }
   async findFirst(
     findFirstMatchTeamDto: Prisma.MatchTeamFindFirstArgs,
   ) {
-    return this.prisma.matchTeam.findFirst(findFirstMatchTeamDto);
+    return this.prisma.matchTeam.findFirst(
+      findFirstMatchTeamDto,
+    );
   }
   async update(updateMatchTeamDto: Prisma.MatchTeamUpdateArgs) {
     return this.prisma.matchTeam.update(updateMatchTeamDto);

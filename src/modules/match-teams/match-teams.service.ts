@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 import { CreateMatchTeamDto } from "./dto/create-match-team.dto";
 import { UpdateMatchTeamDto } from "./dto/update-match-team.dto";
 import { GenerateMatchTeamsDto } from "./dto/generate-match-teams.dto";
@@ -6,9 +10,17 @@ import { MatchTeamsRepository } from "@src/shared/database/repositories/match-te
 import { GroupMembersRepository } from "@src/shared/database/repositories/group-members.repository";
 import { GuestUsersRepository } from "@src/shared/database/repositories/guest-users.repository";
 import { UserBelongsToGroupService } from "../groups/services/userBelongsToGroup.service";
-import { balanceMembersIntoTeams } from "./utils/match-teams-balancer";
+import {
+  balanceMembersIntoTeams,
+  distributeGoalkeepers,
+} from "./utils/match-teams-balancer";
 import { TEAM_COLORS } from "./constants/teamColors";
 import { GroupMatchesService } from "../group-matches/services/group-matches.service";
+import { rankWeight } from "@src/shared/utils/rank-weight";
+import {
+  Position,
+  Rank,
+} from "../../../generated/prisma/client";
 
 @Injectable()
 export class MatchTeamsService {
@@ -50,7 +62,7 @@ export class MatchTeamsService {
       matchId,
     });
 
-    return await this.matchTeamsRepository.findAll({
+    const matchTeams = await this.matchTeamsRepository.findAll({
       where: {
         groupMatchId: matchId,
       },
@@ -63,6 +75,10 @@ export class MatchTeamsService {
                 name: true,
                 position: true,
                 profilePicture: true,
+                groupMembers: {
+                  where: { groupId },
+                  select: { rank: true },
+                },
               },
             },
             guestUser: true,
@@ -70,6 +86,10 @@ export class MatchTeamsService {
         },
       },
     });
+
+    return matchTeams.map((matchTeam) =>
+      this.formatMatchTeam(matchTeam),
+    );
   }
 
   async findOne(
@@ -100,6 +120,10 @@ export class MatchTeamsService {
                 name: true,
                 position: true,
                 profilePicture: true,
+                groupMembers: {
+                  where: { groupId },
+                  select: { rank: true },
+                },
               },
             },
             guestUser: true,
@@ -112,7 +136,7 @@ export class MatchTeamsService {
         "Match team not found in this match",
       );
     }
-    return matchTeam;
+    return this.formatMatchTeam(matchTeam);
   }
 
   async update(
@@ -150,7 +174,7 @@ export class MatchTeamsService {
       matchId,
     });
 
-    const { teamCount } = generateMatchTeamsDto;
+    const { playersPerTeam } = generateMatchTeamsDto;
 
     const [confirmedMembers, confirmedGuests] =
       await Promise.all([
@@ -178,7 +202,7 @@ export class MatchTeamsService {
         }),
       ]);
 
-    const membersForBalancing = [
+    const confirmed = [
       ...confirmedMembers.map((member) => ({
         userId: member.userId,
         guestUserId: null,
@@ -193,21 +217,79 @@ export class MatchTeamsService {
       })),
     ];
 
-    const teamsAssignments = balanceMembersIntoTeams(
-      membersForBalancing,
+    const goalkeepers = confirmed.filter(
+      (member) => member.position === Position.GOALKEEPER,
+    );
+    const outfieldPlayers = confirmed.filter(
+      (member) => member.position !== Position.GOALKEEPER,
+    );
+
+    if (outfieldPlayers.length < 2) {
+      throw new BadRequestException(
+        "Not enough confirmed outfield players to generate teams",
+      );
+    }
+
+    const teamCount = Math.max(
+      2,
+      Math.round(outfieldPlayers.length / playersPerTeam),
+    );
+
+    const outfieldAssignments = balanceMembersIntoTeams(
+      outfieldPlayers,
+      teamCount,
+    );
+    const goalkeeperAssignments = distributeGoalkeepers(
+      goalkeepers,
       teamCount,
     );
 
-    const teams = teamsAssignments.map((players, index) => ({
+    const teams = outfieldAssignments.map((players, index) => ({
       name: `Time ${index + 1}`,
       color: TEAM_COLORS[index % TEAM_COLORS.length],
-      players,
+      players: [...players, ...goalkeeperAssignments[index]],
     }));
 
     return this.matchTeamsRepository.regenerateTeams({
       groupMatchId: matchId,
       teams,
     });
+  }
+
+  private formatMatchTeam<
+    T extends {
+      matchTeamPlayers: {
+        user: {
+          id: string;
+          name: string;
+          position: Position;
+          profilePicture: string | null;
+          groupMembers: { rank: Rank | null }[];
+        } | null;
+        guestUser: { rank: Rank } | null;
+      }[];
+    },
+  >(matchTeam: T) {
+    const matchTeamPlayers = matchTeam.matchTeamPlayers
+      .map((player) => ({
+        ...player,
+        user: player.user
+          ? {
+              id: player.user.id,
+              name: player.user.name,
+              position: player.user.position,
+              profilePicture: player.user.profilePicture,
+              rank: player.user.groupMembers[0]?.rank ?? null,
+            }
+          : null,
+      }))
+      .sort(
+        (a, b) =>
+          rankWeight(b.user?.rank ?? b.guestUser?.rank ?? null) -
+          rankWeight(a.user?.rank ?? a.guestUser?.rank ?? null),
+      );
+
+    return { ...matchTeam, matchTeamPlayers };
   }
 
   async checkIfMatchTeamBelongsToMatch({

@@ -1,10 +1,10 @@
-import { Position, Rank } from "../../../../generated/prisma/client";
+import { Rank } from "../../../../generated/prisma/client";
+import { rankWeight } from "@src/shared/utils/rank-weight";
 
 export type ConfirmedMemberForBalancing = {
   userId: string | null;
   guestUserId: string | null;
   rank: Rank | null;
-  position: Position;
 };
 
 export type TeamPlayerAssignment = {
@@ -12,17 +12,12 @@ export type TeamPlayerAssignment = {
   guestUserId?: string;
 };
 
-const RANK_WEIGHT: Record<Rank, number> = {
-  BRASILEIRAO: 1,
-  CHAMPIONS_LEAGUE: 2,
-  BALLON_DOR: 3,
-};
-
 /**
- * Distributes confirmed players into `teamCount` teams, attempting to
- * balance by position and rank: groups by position, sorts each group
- * from highest to lowest rank, and distributes in "snake draft"
- * (1,2,3 | 3,2,1 | 1,2,3 | ...) to avoid stacking the best players on the same team.
+ * Distributes players into `teamCount` teams, sorted by rank (best
+ * first) and snake-drafted (1,2,3 | 3,2,1 | 1,2,3 | ...) so team sizes
+ * stay equal and no team stacks the best-ranked players. Position is
+ * not a grouping criterion here — equal team size takes priority over
+ * an even spread of positions across teams.
  */
 export function balanceMembersIntoTeams(
   members: ConfirmedMemberForBalancing[],
@@ -33,42 +28,56 @@ export function balanceMembersIntoTeams(
     () => [],
   );
 
-  const membersByPosition = new Map<
-    Position,
-    ConfirmedMemberForBalancing[]
-  >();
-  for (const member of members) {
-    const group = membersByPosition.get(member.position) ?? [];
-    group.push(member);
-    membersByPosition.set(member.position, group);
-  }
+  const sortedMembers = [...members].sort(
+    (a, b) => rankWeight(b.rank) - rankWeight(a.rank),
+  );
 
-  for (const group of membersByPosition.values()) {
-    group.sort(
-      (a, b) =>
-        (b.rank ? RANK_WEIGHT[b.rank] : 0) -
-        (a.rank ? RANK_WEIGHT[a.rank] : 0),
+  let index = 0;
+  let round = 0;
+  while (index < sortedMembers.length) {
+    const teamOrder = Array.from(
+      { length: teamCount },
+      (_, i) => i,
     );
-
-    let index = 0;
-    let round = 0;
-    while (index < group.length) {
-      const teamOrder = Array.from({ length: teamCount }, (_, i) => i);
-      if (round % 2 === 1) {
-        teamOrder.reverse();
-      }
-      for (const teamIndex of teamOrder) {
-        if (index >= group.length) break;
-        const member = group[index];
-        teams[teamIndex].push({
-          userId: member.userId ?? undefined,
-          guestUserId: member.guestUserId ?? undefined,
-        });
-        index++;
-      }
-      round++;
+    if (round % 2 === 1) {
+      teamOrder.reverse();
     }
+    for (const teamIndex of teamOrder) {
+      if (index >= sortedMembers.length) break;
+      const member = sortedMembers[index];
+      teams[teamIndex].push({
+        userId: member.userId ?? undefined,
+        guestUserId: member.guestUserId ?? undefined,
+      });
+      index++;
+    }
+    round++;
   }
+
+  return teams;
+}
+
+/**
+ * Distributes goalkeepers round-robin across `teamCount` teams.
+ * Goalkeepers don't count toward playersPerTeam and aren't balanced by
+ * rank — some teams may end up with no goalkeeper, others with more
+ * than one.
+ */
+export function distributeGoalkeepers(
+  goalkeepers: ConfirmedMemberForBalancing[],
+  teamCount: number,
+): TeamPlayerAssignment[][] {
+  const teams: TeamPlayerAssignment[][] = Array.from(
+    { length: teamCount },
+    () => [],
+  );
+
+  goalkeepers.forEach((goalkeeper, index) => {
+    teams[index % teamCount].push({
+      userId: goalkeeper.userId ?? undefined,
+      guestUserId: goalkeeper.guestUserId ?? undefined,
+    });
+  });
 
   return teams;
 }

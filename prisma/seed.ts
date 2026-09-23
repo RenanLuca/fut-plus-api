@@ -10,7 +10,7 @@ import {
   Weekday,
 } from "../generated/prisma/client";
 
-const OWNER_EMAIL = "renan@gmail.com";
+const OWNER_EMAIL = "renandelucamachado32@gmail.com";
 const DEMO_PASSWORD = "123456";
 const DEMO_GROUP_NAMES = ["Pelada de Sexta", "Pelada Mensal"];
 const BRAZIL_UTC_OFFSET_HOURS = 3;

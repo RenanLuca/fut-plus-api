@@ -10,6 +10,7 @@ import { MatchTeamsRepository } from "./repositories/match-teams.repository";
 import { MatchTeamsPlayersRepository } from "./repositories/match-team-players.repository";
 import { GroupPaymentsRepository } from "./repositories/group-payments.repository";
 import { GroupInvitesRepository } from "./repositories/group-invites.repository";
+import { VerificationTokensRepository } from "./repositories/verification-tokens.repository";
 
 @Global()
 @Module({
@@ -25,6 +26,7 @@ import { GroupInvitesRepository } from "./repositories/group-invites.repository"
     MatchTeamsPlayersRepository,
     GroupPaymentsRepository,
     GroupInvitesRepository,
+    VerificationTokensRepository,
   ],
   exports: [
     UsersRepository,
@@ -37,6 +39,7 @@ import { GroupInvitesRepository } from "./repositories/group-invites.repository"
     MatchTeamsPlayersRepository,
     GroupPaymentsRepository,
     GroupInvitesRepository,
+    VerificationTokensRepository,
   ],
 })
 export class DatabaseModule {}

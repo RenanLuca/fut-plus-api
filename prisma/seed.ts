@@ -11,6 +11,7 @@ import {
 } from "../generated/prisma/client";
 
 const OWNER_EMAIL = "renandelucamachado32@gmail.com";
+const OWNER_RANK = Rank.CHAMPIONS_LEAGUE;
 const DEMO_PASSWORD = "123456";
 const DEMO_GROUP_NAMES = ["Pelada de Sexta", "Pelada Mensal"];
 const BRAZIL_UTC_OFFSET_HOURS = 3;
@@ -243,6 +244,7 @@ async function createGroup(params: {
       groupId: group.id,
       userId: params.ownerId,
       type: GroupMemberType.OWNER,
+      rank: OWNER_RANK,
     },
   });
   for (const member of members) {

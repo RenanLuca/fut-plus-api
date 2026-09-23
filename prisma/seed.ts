@@ -308,7 +308,7 @@ async function seedEventualGroup(
       isPresent: true,
     },
   });
-  for (const user of coreUsers.slice(0, 5)) {
+  for (const user of coreUsers) {
     await prisma.groupMatchPresence.create({
       data: {
         groupMatchId: matchA.id,
@@ -320,24 +320,16 @@ async function seedEventualGroup(
   await prisma.groupMatchPresence.create({
     data: {
       groupMatchId: matchA.id,
-      userId: coreUsers[5].id,
-      isPresent: false,
-    },
-  });
-  // coreUsers[6] fica pendente (sem registro de presença).
-  await prisma.groupMatchPresence.create({
-    data: {
-      groupMatchId: matchA.id,
       userId: extraUsers[0].id,
       isPresent: false,
     },
   });
   // extraUsers[1] e extraUsers[2] ficam pendentes (sem registro).
-  for (const guest of DEMO_GUESTS.slice(0, 2)) {
+  for (const guest of DEMO_GUESTS) {
     await addConfirmedGuest(matchA.id, guest);
   }
   console.log(
-    `Partida A (${matchADate.toISOString()}): 8 confirmados (2 convidados), 2 recusaram, 3 pendentes, sem times.`,
+    `Partida A (${matchADate.toISOString()}): 11 confirmados (dono + núcleo balanceado + 3 convidados), 1 recusou, 2 pendentes, sem times.`,
   );
 
   const matchBDate = new Date(matchADate);

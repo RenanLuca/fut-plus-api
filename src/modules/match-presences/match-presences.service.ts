@@ -5,13 +5,18 @@ import { GroupMembersRepository } from "@src/shared/database/repositories/group-
 import { GuestUsersRepository } from "@src/shared/database/repositories/guest-users.repository";
 import { UserBelongsToGroupService } from "../groups/services/userBelongsToGroup.service";
 import { GroupMatchesService } from "../group-matches/services/group-matches.service";
-import { Position } from "../../../generated/prisma/client";
+import {
+  Position,
+  Rank,
+} from "../../../generated/prisma/client";
+import { rankWeight } from "@src/shared/utils/rank-weight";
 
 type MatchPresenceMember = {
   id: string;
   name: string;
   position: Position;
   profilePicture: string | null;
+  rank: Rank | null;
   isGuest: boolean;
 };
 
@@ -44,6 +49,7 @@ export class MatchPresencesService {
         where: { groupId },
         select: {
           userId: true,
+          rank: true,
           user: {
             select: {
               name: true,
@@ -55,7 +61,12 @@ export class MatchPresencesService {
       }),
       this.guestUsersRepository.findMany({
         where: { groupMatchId: matchId },
-        select: { id: true, name: true, position: true },
+        select: {
+          id: true,
+          name: true,
+          position: true,
+          rank: true,
+        },
       }),
       this.matchPresencesRepository.findMany({
         where: { groupMatchId: matchId },
@@ -92,6 +103,7 @@ export class MatchPresencesService {
         name: member.user.name,
         position: member.user.position,
         profilePicture: member.user.profilePicture,
+        rank: member.rank,
         isGuest: false,
       });
     }
@@ -102,9 +114,18 @@ export class MatchPresencesService {
         name: guest.name,
         position: guest.position,
         profilePicture: null,
+        rank: guest.rank,
         isGuest: true,
       });
     }
+
+    const byRankDesc = (
+      a: MatchPresenceMember,
+      b: MatchPresenceMember,
+    ) => rankWeight(b.rank) - rankWeight(a.rank);
+    confirmed.sort(byRankDesc);
+    declined.sort(byRankDesc);
+    pending.sort(byRankDesc);
 
     return { confirmed, declined, pending };
   }

@@ -42,7 +42,11 @@ export class MailService {
    * endpoint (max 100 emails per call) to stay under the rate limit.
    */
   async sendBatch(messages: MailMessage[]): Promise<void> {
-    for (let i = 0; i < messages.length; i += RESEND_BATCH_LIMIT) {
+    for (
+      let i = 0;
+      i < messages.length;
+      i += RESEND_BATCH_LIMIT
+    ) {
       const chunk = messages.slice(i, i + RESEND_BATCH_LIMIT);
       try {
         const { error } = await this.resend.batch.send(

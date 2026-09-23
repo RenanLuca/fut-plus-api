@@ -1,6 +1,10 @@
 import "dotenv/config";
 import { plainToInstance } from "class-transformer";
-import { IsNotEmpty, IsString, validateSync } from "class-validator";
+import {
+  IsNotEmpty,
+  IsString,
+  validateSync,
+} from "class-validator";
 
 class Env {
   @IsString()
@@ -35,7 +39,9 @@ const env: Env = plainToInstance(Env, {
 const errors = validateSync(env);
 
 if (errors.length > 0) {
-  throw new Error(`Invalid environment variables: ${errors.toString()}`);
+  throw new Error(
+    `Invalid environment variables: ${errors.toString()}`,
+  );
 }
 
 export { env };

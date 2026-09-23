@@ -1,17 +1,34 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
+import { compare, hash } from "bcryptjs";
+import { env } from "@src/shared/config/env";
+import { AuthService } from "@src/modules/auth/services/auth.service";
+import { VerificationTokensService } from "@src/modules/auth/services/verification-tokens.service";
+import { EMAIL_CHANGE_TOKEN_TTL_MS } from "@src/modules/auth/constants/tokenTtl";
+import { MailService } from "@src/modules/mail/mail.service";
+import { changeEmailTemplate } from "@src/modules/mail/templates/change-email.template";
+import { emailChangedTemplate } from "@src/modules/mail/templates/email-changed.template";
+import { passwordChangedTemplate } from "@src/modules/mail/templates/password-changed.template";
+import { VerificationTokenType } from "../../../generated/prisma/client";
 import { UsersRepository } from "@src/shared/database/repositories/users.repository";
 import { GroupMatchesRepository } from "@src/shared/database/repositories/group-matches.repository";
 import { UpdateUserDto } from "./dto/updateUser.dto";
+import { ChangePasswordDto } from "./dto/changePassword.dto";
+import { ChangeEmailDto } from "./dto/changeEmail.dto";
+import { ConfirmEmailChangeDto } from "./dto/confirmEmailChange.dto";
 
 @Injectable()
 export class UsersService {
   constructor(
     private readonly usersRepository: UsersRepository,
     private readonly groupMatchesRepository: GroupMatchesRepository,
+    private readonly authService: AuthService,
+    private readonly verificationTokensService: VerificationTokensService,
+    private readonly mailService: MailService,
   ) {}
   async checkIfUserExists(userId: string) {
     const user = await this.usersRepository.findUnique({
@@ -44,9 +61,6 @@ export class UsersService {
 
   async update(userId: string, updateUserDto: UpdateUserDto) {
     await this.checkIfUserExists(userId);
-    if (updateUserDto.email) {
-      await this.checkEmailAvailability(updateUserDto.email);
-    }
     const updatedUser = await this.usersRepository.update({
       where: {
         id: userId,
@@ -56,6 +70,116 @@ export class UsersService {
     const { hashedPassword, ...userWithoutPassword } =
       updatedUser;
     return userWithoutPassword;
+  }
+
+  async changePassword(
+    userId: string,
+    { currentPassword, newPassword }: ChangePasswordDto,
+  ) {
+    const user = await this.checkIfUserExists(userId);
+    await this.assertPasswordMatches(
+      currentPassword,
+      user.hashedPassword,
+    );
+
+    await this.usersRepository.update({
+      where: { id: userId },
+      data: {
+        hashedPassword: await hash(newPassword, 10),
+        passwordChangedAt: new Date(),
+      },
+    });
+
+    void this.mailService.send({
+      to: user.email,
+      ...passwordChangedTemplate({ name: user.name }),
+    });
+
+    // Changing the password invalidates every token issued before it,
+    // including the one used on this request, so hand back a fresh one.
+    const accessToken =
+      await this.authService.generateAccessToken(userId);
+    return { accessToken };
+  }
+
+  async changeEmail(
+    userId: string,
+    { newEmail, password }: ChangeEmailDto,
+  ) {
+    const user = await this.checkIfUserExists(userId);
+    await this.assertPasswordMatches(
+      password,
+      user.hashedPassword,
+    );
+
+    if (newEmail.toLowerCase() === user.email.toLowerCase()) {
+      throw new BadRequestException(
+        "New email must be different from the current one",
+      );
+    }
+    await this.checkEmailAvailability(newEmail);
+
+    const token = await this.verificationTokensService.issue({
+      userId,
+      type: VerificationTokenType.EMAIL_CHANGE,
+      ttlMs: EMAIL_CHANGE_TOKEN_TTL_MS,
+      newEmail,
+    });
+
+    // Sent to the NEW address: only someone who controls it can confirm.
+    void this.mailService.send({
+      to: newEmail,
+      ...changeEmailTemplate({
+        name: user.name,
+        url: `${env.frontendUrl}/confirm-email-change?token=${token}`,
+      }),
+    });
+
+    return {
+      message: "Confirmation email sent to the new address",
+    };
+  }
+
+  async confirmEmailChange({ token }: ConfirmEmailChangeDto) {
+    const { userId, newEmail } =
+      await this.verificationTokensService.consume(
+        token,
+        VerificationTokenType.EMAIL_CHANGE,
+      );
+    if (!newEmail) {
+      throw new BadRequestException("Invalid or expired token");
+    }
+
+    const user = await this.checkIfUserExists(userId);
+    // Re-checked here: someone else may have taken the address between
+    // the request and the confirmation.
+    await this.checkEmailAvailability(newEmail);
+
+    const updatedUser = await this.usersRepository.update({
+      where: { id: userId },
+      data: { email: newEmail, emailVerifiedAt: new Date() },
+    });
+
+    void this.mailService.send({
+      to: user.email,
+      ...emailChangedTemplate({ name: user.name, newEmail }),
+    });
+
+    const { hashedPassword, ...userWithoutPassword } =
+      updatedUser;
+    return userWithoutPassword;
+  }
+
+  private async assertPasswordMatches(
+    password: string,
+    hashedPassword: string,
+  ) {
+    // 400 instead of 401: a 401 makes most clients treat the session as
+    // expired and log the user out over a simple typo.
+    const isValid = await compare(password, hashedPassword);
+    if (!isValid) {
+      throw new BadRequestException("Incorrect password");
+    }
   }
 
   async delete(userId: string) {

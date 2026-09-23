@@ -1,7 +1,7 @@
 import { PositionEnum } from "@src/shared/enum/positionEnum";
 import { Transform, TransformFnParams } from "class-transformer";
 import {
-  IsEmail,
+  IsBoolean,
   IsEnum,
   IsNotEmpty,
   IsOptional,
@@ -19,10 +19,9 @@ export class UpdateUserDto {
   @IsOptional()
   name?: string;
 
-  @IsString()
-  @IsEmail()
+  @IsBoolean()
   @IsOptional()
-  email?: string;
+  emailNotifications?: boolean;
 
   @IsEnum(PositionEnum)
   @IsOptional()

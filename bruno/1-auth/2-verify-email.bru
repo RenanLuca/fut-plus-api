@@ -1,0 +1,37 @@
+meta {
+  name: Verify email
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/auth/verify-email
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "token": "{{verificationToken}}"
+  }
+}
+
+tests {
+  test("deve verificar o email do dono", function() {
+    expect(res.getStatus()).to.equal(200);
+    expect(res.getBody().message).to.equal("Email verified");
+  });
+}
+
+docs {
+  Passo manual: o token só existe no email enviado no "Signup". Copie o
+  valor do `?token=` do link para a variável `verificationToken` antes de
+  rodar. O token vale 24h e só pode ser usado uma vez (a segunda tentativa
+  com o mesmo token dá 400).
+
+  Depois de verificar, o email de boas-vindas é enviado.
+}

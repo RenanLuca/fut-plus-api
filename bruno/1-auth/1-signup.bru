@@ -28,24 +28,30 @@ vars:pre-request {
 }
 
 tests {
-  test("deve criar o usuário e retornar o accessToken", function() {
+  test("deve criar o usuário e pedir a verificação de email", function() {
     expect(res.getStatus()).to.equal(201);
-    expect(res.getBody()).to.have.property('accessToken');
-    bru.setVar("authToken", res.getBody().accessToken);
+    expect(res.getBody()).to.have.property('message');
+    expect(res.getBody()).to.not.have.property('accessToken');
   });
 }
 
 docs {
   Cria o usuário dono do grupo usado no resto da collection.
-  
+
+  O signup NÃO devolve mais accessToken: o usuário precisa verificar o
+  email antes de logar. O link de verificação chega por email
+  (FRONTEND_URL/verify-email?token=...). Copie o valor de `token` para a
+  variável `verificationToken` e rode o "Verify email" em seguida, depois
+  o "Signin".
+
   Se rodar a collection mais de uma vez, esse request vai falhar com 409
   (e-mail já em uso) — nesse caso, rode direto o "Signin" em vez deste,
   ou troque o e-mail aqui antes de rodar de novo.
-  
+
   ### Resposta 201
   ```json
   {
-    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+    "message": "Verification email sent"
   }
   ```
 }

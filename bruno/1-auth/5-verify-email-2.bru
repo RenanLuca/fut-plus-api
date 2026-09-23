@@ -1,0 +1,32 @@
+meta {
+  name: Verify email 2
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/auth/verify-email
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "token": "{{verificationToken2}}"
+  }
+}
+
+tests {
+  test("deve verificar o email do segundo usuário", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+}
+
+docs {
+  Igual ao "Verify email", mas para o usuário do "Signup 2": copie o
+  token do email para a variável `verificationToken2`.
+}

@@ -1,0 +1,37 @@
+meta {
+  name: Resend verification
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseUrl}}/auth/resend-verification
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "email": "nao.verificado@peladaplus.com"
+  }
+}
+
+tests {
+  test("deve responder 200 mesmo que a conta não exista", function() {
+    expect(res.getStatus()).to.equal(200);
+    expect(res.getBody()).to.have.property('message');
+  });
+}
+
+docs {
+  Reenvia o email de verificação. Sempre responde 200 com a mesma
+  mensagem, exista a conta ou não (e esteja ela verificada ou não), pra
+  esta rota não servir de "lista de emails cadastrados".
+
+  Limite: 3 requests por minuto por IP (429 depois disso). Reenviar
+  invalida o link anterior.
+}

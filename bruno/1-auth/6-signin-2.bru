@@ -1,0 +1,35 @@
+meta {
+  name: Signin 2
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/auth/signin
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "email": "membro.test@peladaplus.com",
+    "password": "senha123"
+  }
+}
+
+tests {
+  test("deve autenticar o segundo usuário e guardar o authToken2", function() {
+    expect(res.getStatus()).to.equal(201);
+    expect(res.getBody()).to.have.property('accessToken');
+    bru.setVar("authToken2", res.getBody().accessToken);
+  });
+}
+
+docs {
+  Login do usuário do "Signup 2". Só funciona depois do "Verify email 2":
+  antes disso o signin responde 403 (Email not verified).
+}

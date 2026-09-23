@@ -1,7 +1,7 @@
 meta {
   name: Signup 2
   type: http
-  seq: 3
+  seq: 4
 }
 
 post {
@@ -24,10 +24,9 @@ body:json {
 }
 
 tests {
-  test("deve criar o segundo usuário e retornar o accessToken", function() {
+  test("deve criar o segundo usuário e pedir a verificação de email", function() {
     expect(res.getStatus()).to.equal(201);
-    expect(res.getBody()).to.have.property('accessToken');
-    bru.setVar("authToken2", res.getBody().accessToken);
+    expect(res.getBody()).to.have.property('message');
   });
 }
 
@@ -36,7 +35,10 @@ docs {
   "entrar num grupo" (POST /groups/:groupId/group-members) como alguém
   que não é o dono.
 
+  Mesmo fluxo do "Signup": verifique o email ("Verify email 2", com o
+  token na variável `verificationToken2`) e faça o "Signin 2" para obter
+  o authToken2.
+
   Mesma observação do "Signup": se já existir, dá 409 — troque o e-mail
-  antes de rodar de novo (não tem um "Signin 2" separado nessa collection,
-  esse token já é reaproveitado direto).
+  antes de rodar de novo, ou rode direto o "Signin 2".
 }

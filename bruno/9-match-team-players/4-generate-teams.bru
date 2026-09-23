@@ -20,7 +20,7 @@ auth:bearer {
 
 body:json {
   {
-    "playersPerTeam": 5
+    "playersPerTeam": 1
   }
 }
 
@@ -37,18 +37,24 @@ docs {
   dessa partida (incluindo o time usado nos requests anteriores desta
   pasta, com o roster montado manualmente) e recria do zero.
 
-  O body manda playersPerTeam (jogadores de LINHA por time), não a
-  quantidade de times — o backend calcula:
-  teamCount = max(2, round(jogadoresDeLinhaConfirmados / playersPerTeam))
+  O body manda playersPerTeam (jogadores por time, GOLEIROS INCLUSOS),
+  não a quantidade de times — o backend calcula:
+  teamCount = floor(confirmados / playersPerTeam)
+  Quem sobra da divisão entra nos times já existentes (14 confirmados
+  com 5 por time = 2 times de 7).
 
-  Goleiros (Position.GOALKEEPER) não entram nessa conta: são
-  distribuídos 1 por time em round-robin simples, à parte do
-  balanceamento por rank (pode sobrar time sem goleiro ou com mais de
-  um). Os jogadores de linha são ordenados só por rank e distribuídos
-  em snake draft direto nos teamCount times — posição deixou de ser
-  critério de agrupamento, tamanho igual dos times tem prioridade.
+  Validação: 1 <= playersPerTeam <= floor(confirmados / 2), ou seja, tem
+  que caber no mínimo 2 times. Fora disso responde 400 (ex: 10
+  confirmados aceita até 5; 6 dá 400). Este request usa 1 porque a
+  collection tem poucos confirmados.
 
-  Se sobrarem menos de 2 confirmados de linha, o request falha com 400.
+  Distribuição: primeiro os goleiros — os de maior rank, um por time
+  (se houver menos goleiros que times, algum time fica sem, sem erro;
+  goleiros além do número de times contam como jogadores de linha). Depois
+  os demais, do maior para o menor rank, sempre no time com menos
+  jogadores (empate: o time com menor soma de rank). Os times saem com
+  tamanho igual ou diferença de 1, e sem empilhar os melhores. Posição
+  não é critério além da regra do goleiro.
 
   Roda por último de propósito, depois de "Replace all match team
   players" / "Add players" / "Add duplicate player" — como esse request

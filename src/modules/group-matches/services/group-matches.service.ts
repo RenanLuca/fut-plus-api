@@ -7,12 +7,14 @@ import {
 import { UserBelongsToGroupService } from "@src/modules/groups/services/userBelongsToGroup.service";
 import { GroupMatchesRepository } from "@src/shared/database/repositories/group-matches.repository";
 import { CreateGroupMatchDto } from "../dto/create-group-match.dto";
+import { GroupMatchNotificationsService } from "./group-match-notifications.service";
 
 @Injectable()
 export class GroupMatchesService {
   constructor(
     private readonly groupMatchesRepository: GroupMatchesRepository,
     private readonly usersBelongToGroupService: UserBelongsToGroupService,
+    private readonly groupMatchNotificationsService: GroupMatchNotificationsService,
   ) {}
   async create(
     groupId: string,
@@ -37,12 +39,21 @@ export class GroupMatchesService {
         "There's already a match scheduled for this date in this group",
       );
     }
-    return this.groupMatchesRepository.create({
+    const match = await this.groupMatchesRepository.create({
       data: {
         ...createGroupMatchDto,
         groupId,
       },
     });
+
+    // Runs for both manual creation and the scheduler, since both go
+    // through this method. Not awaited: emailing must not delay the response.
+    void this.groupMatchNotificationsService.notifyMatchOpened({
+      groupId,
+      matchDate: match.matchDate,
+    });
+
+    return match;
   }
 
   async findAll(groupId: string, userId: string) {

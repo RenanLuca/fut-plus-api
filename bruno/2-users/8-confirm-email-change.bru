@@ -1,0 +1,40 @@
+meta {
+  name: Confirm email change
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseUrl}}/users/confirm-email-change
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "token": "token-invalido"
+  }
+}
+
+tests {
+  test("deve rejeitar token inválido com 400", function() {
+    expect(res.getStatus()).to.equal(400);
+  });
+}
+
+docs {
+  Confirma a troca de email com o token do link enviado ao email novo.
+  É pública (sem Bearer): o link é aberto em qualquer navegador e o token
+  já prova quem é o usuário.
+
+  Ao confirmar: o email do usuário passa a ser o novo (já marcado como
+  verificado) e um aviso é enviado ao email ANTIGO. Responde 409 se
+  outra conta pegou o endereço nesse meio tempo.
+
+  Aqui vai um token inválido de propósito pra collection não trocar o
+  email do dono. Para o caminho feliz, cole o token real do email.
+}

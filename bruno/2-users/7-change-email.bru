@@ -1,0 +1,45 @@
+meta {
+  name: Change email
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/users/change-email
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{authToken}}
+}
+
+body:json {
+  {
+    "newEmail": "owner.novo@example.com",
+    "password": "senha123"
+  }
+}
+
+tests {
+  test("deve pedir a confirmação no novo email", function() {
+    expect(res.getStatus()).to.equal(200);
+    expect(res.getBody()).to.have.property('message');
+  });
+}
+
+docs {
+  Pede a troca de email. NADA muda ainda: o link de confirmação vai para
+  o email NOVO (só quem controla o endereço consegue confirmar), e o
+  email atual só é trocado no "Confirm email change".
+
+  Erros: 400 senha errada ou novo email igual ao atual; 409 novo email
+  já em uso. Limite: 3 por minuto.
+
+  O email do exemplo é @example.com para a collection não mandar email
+  pra um endereço real; troque por um seu para receber o link.
+}

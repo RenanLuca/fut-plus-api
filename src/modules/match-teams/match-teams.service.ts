@@ -10,10 +10,7 @@ import { MatchTeamsRepository } from "@src/shared/database/repositories/match-te
 import { GroupMembersRepository } from "@src/shared/database/repositories/group-members.repository";
 import { GuestUsersRepository } from "@src/shared/database/repositories/guest-users.repository";
 import { UserBelongsToGroupService } from "../groups/services/userBelongsToGroup.service";
-import {
-  balanceMembersIntoTeams,
-  distributeGoalkeepers,
-} from "./utils/match-teams-balancer";
+import { balanceMembersIntoTeams } from "./utils/match-teams-balancer";
 import { TEAM_COLORS } from "./constants/teamColors";
 import { GroupMatchesService } from "../group-matches/services/group-matches.service";
 import { rankWeight } from "@src/shared/utils/rank-weight";
@@ -217,37 +214,27 @@ export class MatchTeamsService {
       })),
     ];
 
-    const goalkeepers = confirmed.filter(
-      (member) => member.position === Position.GOALKEEPER,
-    );
-    const outfieldPlayers = confirmed.filter(
-      (member) => member.position !== Position.GOALKEEPER,
-    );
-
-    if (outfieldPlayers.length < 2) {
+    // Every team needs at least 2 teams to make sense, so the requested
+    // size can be at most half of the confirmed players.
+    const maxPlayersPerTeam = Math.floor(confirmed.length / 2);
+    if (playersPerTeam > maxPlayersPerTeam) {
       throw new BadRequestException(
-        "Not enough confirmed outfield players to generate teams",
+        `playersPerTeam must be between 1 and ${maxPlayersPerTeam} (half of the ${confirmed.length} confirmed players, rounded down) so at least 2 teams fit`,
       );
     }
 
-    const teamCount = Math.max(
-      2,
-      Math.round(outfieldPlayers.length / playersPerTeam),
+    const teamCount = Math.floor(
+      confirmed.length / playersPerTeam,
     );
-
-    const outfieldAssignments = balanceMembersIntoTeams(
-      outfieldPlayers,
-      teamCount,
-    );
-    const goalkeeperAssignments = distributeGoalkeepers(
-      goalkeepers,
+    const assignments = balanceMembersIntoTeams(
+      confirmed,
       teamCount,
     );
 
-    const teams = outfieldAssignments.map((players, index) => ({
+    const teams = assignments.map((players, index) => ({
       name: `Time ${index + 1}`,
       color: TEAM_COLORS[index % TEAM_COLORS.length],
-      players: [...players, ...goalkeeperAssignments[index]],
+      players,
     }));
 
     return this.matchTeamsRepository.regenerateTeams({

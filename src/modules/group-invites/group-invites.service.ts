@@ -1,25 +1,28 @@
 import {
   ConflictException,
+  Inject,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { GroupInvitesRepository } from "@src/shared/database/repositories/group-invites.repository";
-import { GroupMembersRepository } from "@src/shared/database/repositories/group-members.repository";
+import { GROUP_INVITES_REPOSITORY } from "@src/shared/database/interfaces/group-invites.repository.interface";
+import type { IGroupInvitesRepository } from "@src/shared/database/interfaces/group-invites.repository.interface";
+import { GROUP_MEMBERS_REPOSITORY } from "@src/shared/database/interfaces/group-members.repository.interface";
+import type { IGroupMembersRepository } from "@src/shared/database/interfaces/group-members.repository.interface";
 import { GroupsService } from "../groups/services/groups.service";
 import { AcceptInviteDto } from "./dto/accept-invite.dto";
 
 @Injectable()
 export class GroupInvitesService {
   constructor(
-    private readonly groupInvitesRepository: GroupInvitesRepository,
-    private readonly groupMembersRepository: GroupMembersRepository,
+    @Inject(GROUP_INVITES_REPOSITORY)
+    private readonly groupInvitesRepository: IGroupInvitesRepository,
+    @Inject(GROUP_MEMBERS_REPOSITORY)
+    private readonly groupMembersRepository: IGroupMembersRepository,
     private readonly groupsService: GroupsService,
   ) {}
 
   async findByGroup(groupId: string) {
-    const invite = await this.groupInvitesRepository.findUnique({
-      where: { groupId },
-    });
+    const invite = await this.groupInvitesRepository.findByGroupId(groupId);
     if (!invite) {
       throw new NotFoundException("Group has no active invite");
     }
@@ -42,23 +45,24 @@ export class GroupInvitesService {
   async preview(inviteId: string, userId: string) {
     const invite = await this.checkIfInviteExists(inviteId);
     const { group } = invite;
-    const member = await this.groupMembersRepository.findUnique({
-      where: { groupId_userId: { groupId: group.id, userId } },
-    });
+    const member = await this.groupMembersRepository.findByGroupIdAndUserId(
+      group!.id,
+      userId,
+    );
 
     return {
       id: invite.id,
       alreadyMember: !!member,
-      membersCount: group._count.groupMembers,
+      membersCount: group!._count.groupMembers,
       group: {
-        id: group.id,
-        name: group.name,
-        weekday: group.weekday,
-        hour: group.hour,
-        frequency: group.frequency,
-        valuePerUser: group.valuePerUser,
+        id: group!.id,
+        name: group!.name,
+        weekday: group!.weekday,
+        hour: group!.hour,
+        frequency: group!.frequency,
+        valuePerUser: group!.valuePerUser,
       },
-      owner: { name: group.owner.name },
+      owner: { name: group!.owner.name },
     };
   }
 
@@ -68,9 +72,10 @@ export class GroupInvitesService {
     { type, rank }: AcceptInviteDto,
   ) {
     const { groupId } = await this.checkIfInviteExists(inviteId);
-    const member = await this.groupMembersRepository.findUnique({
-      where: { groupId_userId: { groupId, userId } },
-    });
+    const member = await this.groupMembersRepository.findByGroupIdAndUserId(
+      groupId,
+      userId,
+    );
     if (member) {
       throw new ConflictException(
         "User already belongs to the group",
@@ -78,21 +83,16 @@ export class GroupInvitesService {
     }
 
     return this.groupMembersRepository.create({
-      data: { groupId, userId, type, rank },
+      groupId,
+      userId,
+      type,
+      rank: rank,
     });
   }
 
   private async checkIfInviteExists(inviteId: string) {
-    const invite = await this.groupInvitesRepository.findUnique({
-      where: { id: inviteId },
-      include: {
-        group: {
-          include: {
-            owner: { select: { name: true } },
-            _count: { select: { groupMembers: true } },
-          },
-        },
-      },
+    const invite = await this.groupInvitesRepository.findById(inviteId, {
+      includeGroupWithDetails: true,
     });
     if (!invite) {
       throw new NotFoundException("Invite not found or revoked");

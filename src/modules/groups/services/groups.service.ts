@@ -1,45 +1,39 @@
 import {
   BadRequestException,
   ForbiddenException,
+  Inject,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
 import { CreateGroupDto } from "../dto/create-group.dto";
 import { UpdateGroupDto } from "../dto/update-group.dto";
 import { TransferOwnershipDto } from "../dto/transfer-ownership.dto";
-import { GroupsRepository } from "@src/shared/database/repositories/groups.repository";
+import { GROUPS_REPOSITORY } from "@src/shared/database/interfaces/groups.repository.interface";
+import type { IGroupsRepository } from "@src/shared/database/interfaces/groups.repository.interface";
 import { UserBelongsToGroupService } from "./userBelongsToGroup.service";
 import { FrequencyType } from "@src/shared/enum/FrequencyType";
 
 @Injectable()
 export class GroupsService {
   constructor(
-    private readonly groupsRepository: GroupsRepository,
+    @Inject(GROUPS_REPOSITORY)
+    private readonly groupsRepository: IGroupsRepository,
     private readonly userBelongsToGroupService: UserBelongsToGroupService,
   ) {}
   async create(createGroupDto: CreateGroupDto, ownerId: string) {
     const { rank, ...groupData } = createGroupDto;
     return this.groupsRepository.createWithOwner(
       { ...groupData, ownerId },
-      ownerId,
       rank,
     );
   }
 
   findAllGroupsPerUser(userId: string) {
-    return this.groupsRepository.findMany({
-      where: {
-        groupMembers: {
-          some: { userId },
-        },
-      },
-    });
+    return this.groupsRepository.findAllByMember(userId);
   }
 
   findAllByFrequency(frequency: FrequencyType) {
-    return this.groupsRepository.findMany({
-      where: { frequency },
-    });
+    return this.groupsRepository.findAllByFrequency(frequency);
   }
 
   async findOne(userId: string, id: string) {
@@ -48,9 +42,7 @@ export class GroupsService {
       groupId: id,
     });
     await this.checkIfGroupExists(id);
-    return await this.groupsRepository.findUnique({
-      where: { id },
-    });
+    return await this.groupsRepository.findById(id);
   }
 
   async update(
@@ -60,18 +52,16 @@ export class GroupsService {
   ) {
     await this.checkIfUserIsOwner(groupId, userId);
     await this.checkIfGroupExists(groupId);
-    return await this.groupsRepository.update({
-      where: { id: groupId },
-      data: updateGroupDto,
-    });
+    return await this.groupsRepository.update(
+      groupId,
+      updateGroupDto,
+    );
   }
 
   async remove(groupId: string, userId: string) {
     await this.checkIfUserIsOwner(groupId, userId);
     await this.checkIfGroupExists(groupId);
-    return await this.groupsRepository.delete({
-      where: { id: groupId },
-    });
+    return await this.groupsRepository.delete(groupId);
   }
 
   async transferOwnership(
@@ -97,9 +87,7 @@ export class GroupsService {
   }
 
   async checkIfGroupExists(id: string) {
-    const group = await this.groupsRepository.findUnique({
-      where: { id },
-    });
+    const group = await this.groupsRepository.findById(id);
     if (!group) {
       throw new NotFoundException(`Group not found`);
     }

@@ -1,12 +1,17 @@
-import { BadRequestException, Injectable } from "@nestjs/common";
-import { GroupMembersRepository } from "@src/shared/database/repositories/group-members.repository";
+import { BadRequestException, Inject, Injectable } from "@nestjs/common";
+import { GROUP_MEMBERS_REPOSITORY } from "@src/shared/database/interfaces/group-members.repository.interface";
+import type { IGroupMembersRepository } from "@src/shared/database/interfaces/group-members.repository.interface";
 import { GroupsService } from "../groups/services/groups.service";
 import { UserBelongsToGroupService } from "../groups/services/userBelongsToGroup.service";
 
 @Injectable()
 export class GroupMembersService {
   constructor(
-    private readonly groupMembersRepository: GroupMembersRepository,
+    @Inject(GROUP_MEMBERS_REPOSITORY)
+    private readonly groupMembersRepository: IGroupMembersRepository & {
+      deleteLegacy: any;
+      findMany: any;
+    },
     private readonly groupsService: GroupsService,
     private readonly usersBelongToGroupService: UserBelongsToGroupService,
   ) {}
@@ -24,7 +29,7 @@ export class GroupMembersService {
       memberId: userId,
       groupId,
     });
-    await this.groupMembersRepository.delete({
+    await (this.groupMembersRepository as any).deleteLegacy({
       where: { groupId_userId: { groupId, userId } },
     });
   }

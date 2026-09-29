@@ -19,19 +19,27 @@ repository por model do Prisma, injetado via `DatabaseModule` (`@Global()`).
 Um `*.service.ts` nunca importa `PrismaClient` nem `PrismaService`
 diretamente — sempre injeta o repository correspondente.
 
-Métodos de repository recebem os `*Args` nativos do Prisma como parâmetro
-(ex: `Prisma.GroupFindManyArgs`), não um DTO de filtro inventado à mão:
+## Repositories atrás de interface (Dependency Inversion)
 
-```ts
-// groups.repository.ts
-findMany(args: Prisma.GroupFindManyArgs) {
-  return this.prisma.group.findMany(args);
-}
-```
+Repository migrado para DIP tem uma interface em
+`src/shared/database/interfaces/<model>.repository.interface.ts`, que
+exporta três coisas: o tipo de domínio do model, a interface
+`I<Model>Repository` e o token de injeção (`Symbol`, ex:
+`GROUPS_REPOSITORY`). A interface não importa nada do Prisma — só tipos de
+domínio e enums de `src/shared/enum/`.
 
-Se uma query precisa de uma forma nova, ela entra como um novo método (ou
-um novo `args` montado no service) — não vira uma abstração de filtro
-paralela ao que o Prisma já oferece.
+A classe do repository faz `implements I<Model>Repository` e é a única que
+conhece o Prisma, incluindo o mapeamento do retorno do Prisma para o tipo
+de domínio. O `DatabaseModule` registra
+`{ provide: GROUPS_REPOSITORY, useClass: GroupsRepository }` e exporta o
+token. O service injeta com `@Inject(GROUPS_REPOSITORY)` e tipa com
+`import type { IGroupsRepository }` (`import type` é obrigatório por causa
+de `isolatedModules` + `emitDecoratorMetadata`).
+
+Os métodos da interface são nomeados pela intenção (`findById`,
+`findAllByMember`), não recebem `Prisma.*Args`. Repositories que ainda não
+foram migrados continuam recebendo `Prisma.*Args` (ex:
+`Prisma.GroupFindManyArgs`) — a migração é feita um model por vez.
 
 ## Um service por arquivo, services/ só quando há mais de um
 

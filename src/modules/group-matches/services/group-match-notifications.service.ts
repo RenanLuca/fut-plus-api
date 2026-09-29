@@ -1,7 +1,9 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Inject, Injectable, Logger } from "@nestjs/common";
 import { env } from "@src/shared/config/env";
-import { GroupMembersRepository } from "@src/shared/database/repositories/group-members.repository";
-import { GroupsRepository } from "@src/shared/database/repositories/groups.repository";
+import { GROUP_MEMBERS_REPOSITORY } from "@src/shared/database/interfaces/group-members.repository.interface";
+import type { IGroupMembersRepository } from "@src/shared/database/interfaces/group-members.repository.interface";
+import { GROUPS_REPOSITORY } from "@src/shared/database/interfaces/groups.repository.interface";
+import type { IGroupsRepository } from "@src/shared/database/interfaces/groups.repository.interface";
 import { MailService } from "@src/modules/mail/mail.service";
 import { matchOpenedTemplate } from "@src/modules/mail/templates/match-opened.template";
 
@@ -12,8 +14,10 @@ export class GroupMatchNotificationsService {
   );
 
   constructor(
-    private readonly groupMembersRepository: GroupMembersRepository,
-    private readonly groupsRepository: GroupsRepository,
+    @Inject(GROUP_MEMBERS_REPOSITORY)
+    private readonly groupMembersRepository: IGroupMembersRepository,
+    @Inject(GROUPS_REPOSITORY)
+    private readonly groupsRepository: IGroupsRepository,
     private readonly mailService: MailService,
   ) {}
 
@@ -32,37 +36,27 @@ export class GroupMatchNotificationsService {
   }): Promise<void> {
     try {
       const [group, members] = await Promise.all([
-        this.groupsRepository.findUnique({
-          where: { id: groupId },
-          select: { name: true },
-        }),
-        this.groupMembersRepository.findMany({
-          where: {
-            groupId,
-            user: {
-              emailNotifications: true,
-              emailVerifiedAt: { not: null },
-            },
-          },
-          select: {
-            user: { select: { name: true, email: true } },
-          },
-        }),
+        this.groupsRepository.findNameById(groupId),
+        this.groupMembersRepository.findAllByGroupIdWithNotificationFilters(
+          groupId,
+        ),
       ]);
       if (!group || members.length === 0) {
         return;
       }
 
       await this.mailService.sendBatch(
-        members.map(({ user }) => ({
-          to: user.email,
-          ...matchOpenedTemplate({
-            name: user.name,
-            groupName: group.name,
-            matchDate,
-            url: `${env.frontendUrl}/groups/${groupId}`,
-          }),
-        })),
+        members
+          .filter((m) => m.user)
+          .map(({ user }) => ({
+            to: user!.email,
+            ...matchOpenedTemplate({
+              name: user!.name,
+              groupName: group!.name,
+              matchDate,
+              url: `${env.frontendUrl}/groups/${groupId}`,
+            }),
+          })),
       );
     } catch (error) {
       this.logger.error(

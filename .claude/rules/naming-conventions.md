@@ -34,11 +34,16 @@
 - Decorator: `PascalCase.ts`, nome igual ao decorator exportado
   (ex: `ActiveUserId.ts` exporta `@ActiveUserId()`)
 
-## Repository: um por model, método recebe `*Args` do Prisma
+## Repository: um por model
 
-Um repository nunca expõe um método com filtros ad-hoc (`findByGroupId`,
-`findActiveUsers`) quando o mesmo resultado é alcançável passando um
-`Prisma.<Model>FindManyArgs` pronto. Ver `architecture.md` para o porquê.
+Repository já migrado para interface (ver `architecture.md`) expõe métodos
+nomeados pela intenção (`findById`, `findAllByMember`, `findNameById`),
+declarados em `src/shared/database/interfaces/<model>.repository.interface.ts`
+— sem `Prisma.*Args`. Token de injeção: `<MODEL_EM_SNAKE_CASE>_REPOSITORY`
+(ex: `GROUPS_REPOSITORY`), interface: `I<Model>Repository`.
+
+Repository ainda não migrado continua recebendo `Prisma.<Model>FindManyArgs`
+em vez de expor métodos com filtro ad-hoc.
 
 ## Import
 

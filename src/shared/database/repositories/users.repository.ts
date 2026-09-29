@@ -1,7 +1,9 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma.service";
 import type {
+  CreateUserDTO,
   IUsersRepository,
+  UpdateUserDTO,
   User,
 } from "../interfaces/users.repository.interface";
 import { PositionEnum } from "@src/shared/enum/positionEnum";
@@ -11,12 +13,7 @@ import type { User as PrismaUser } from "../../../../generated/prisma/client";
 export class UsersRepository implements IUsersRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(data: {
-    email: string;
-    name: string;
-    hashedPassword: string;
-    position: PositionEnum;
-  }): Promise<User> {
+  async create(data: CreateUserDTO): Promise<User> {
     const user = await this.prisma.user.create({ data });
     return this.toDomain(user);
   }
@@ -37,20 +34,7 @@ export class UsersRepository implements IUsersRepository {
 
   async update(
     id: string,
-    data: Partial<
-      Pick<
-        User,
-        | "name"
-        | "telefone"
-        | "position"
-        | "profilePicture"
-        | "hashedPassword"
-        | "passwordChangedAt"
-        | "emailVerifiedAt"
-        | "email"
-        | "emailNotifications"
-      >
-    >,
+    data: UpdateUserDTO,
   ): Promise<User> {
     const user = await this.prisma.user.update({
       where: { id },

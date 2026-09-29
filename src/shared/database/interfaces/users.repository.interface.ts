@@ -17,34 +17,35 @@ export type User = {
   updatedAt: Date;
 };
 
+export type CreateUserDTO = {
+  email: string;
+  name: string;
+  hashedPassword: string;
+  position: PositionEnum;
+};
+
+export type UpdateUserDTO = Partial<
+  Pick<
+    User,
+    | "name"
+    | "telefone"
+    | "position"
+    | "profilePicture"
+    | "hashedPassword"
+    | "passwordChangedAt"
+    | "emailVerifiedAt"
+    | "email"
+    | "emailNotifications"
+  >
+>;
+
 export interface IUsersRepository {
-  create(data: {
-    email: string;
-    name: string;
-    hashedPassword: string;
-    position: PositionEnum;
-  }): Promise<User>;
+  create(data: CreateUserDTO): Promise<User>;
 
   findById(id: string): Promise<User | null>;
   findByEmail(email: string): Promise<User | null>;
 
-  update(
-    id: string,
-    data: Partial<
-      Pick<
-        User,
-        | "name"
-        | "telefone"
-        | "position"
-        | "profilePicture"
-        | "hashedPassword"
-        | "passwordChangedAt"
-        | "emailVerifiedAt"
-        | "email"
-        | "emailNotifications"
-      >
-    >,
-  ): Promise<User>;
+  update(id: string, data: UpdateUserDTO): Promise<User>;
 
   delete(id: string): Promise<User>;
 }

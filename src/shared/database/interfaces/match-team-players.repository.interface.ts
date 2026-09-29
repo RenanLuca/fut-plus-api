@@ -1,4 +1,6 @@
-export const MATCH_TEAM_PLAYERS_REPOSITORY = Symbol("MATCH_TEAM_PLAYERS_REPOSITORY");
+export const MATCH_TEAM_PLAYERS_REPOSITORY = Symbol(
+  "MATCH_TEAM_PLAYERS_REPOSITORY",
+);
 
 export type MatchTeamPlayer = {
   id: string;
@@ -10,15 +12,33 @@ export type MatchTeamPlayer = {
   updatedAt: Date;
 };
 
-export interface IMatchTeamPlayersRepository {
-  create(data: {
-    matchTeamId: string;
-    groupMatchId: string;
-    userId?: string;
-    guestUserId?: string;
-  }): Promise<MatchTeamPlayer>;
+export type PlayerAssignment = {
+  matchTeamId: string;
+  groupMatchId: string;
+  userId?: string;
+  guestUserId?: string;
+};
 
-  findById(id: string): Promise<MatchTeamPlayer | null>;
-  findAllByMatchTeamId(matchTeamId: string): Promise<MatchTeamPlayer[]>;
-  delete(id: string): Promise<MatchTeamPlayer>;
+export interface IMatchTeamPlayersRepository {
+  /**
+   * Finds the roster entry for this player in the match, whichever id
+   * (`userId` XOR `guestUserId`) they have.
+   */
+  findByMatchAndPlayer(
+    groupMatchId: string,
+    player: { userId?: string; guestUserId?: string },
+  ): Promise<MatchTeamPlayer | null>;
+
+  addPlayers(
+    players: PlayerAssignment[],
+  ): Promise<MatchTeamPlayer[]>;
+
+  /**
+   * Clears the roster of every team in `teamIds` and inserts `players`
+   * in their place, in a single transaction.
+   */
+  replaceAllPlayersInTeams(
+    teamIds: string[],
+    players: PlayerAssignment[],
+  ): Promise<MatchTeamPlayer[]>;
 }

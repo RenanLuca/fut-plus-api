@@ -28,16 +28,43 @@ import { VERIFICATION_TOKENS_REPOSITORY } from "./interfaces/verification-tokens
   providers: [
     PrismaService,
     { provide: USERS_REPOSITORY, useClass: UsersRepository },
-    { provide: GUEST_USERS_REPOSITORY, useClass: GuestUsersRepository },
-    { provide: GROUP_MEMBERS_REPOSITORY, useClass: GroupMembersRepository },
+    {
+      provide: GUEST_USERS_REPOSITORY,
+      useClass: GuestUsersRepository,
+    },
+    {
+      provide: GROUP_MEMBERS_REPOSITORY,
+      useClass: GroupMembersRepository,
+    },
     { provide: GROUPS_REPOSITORY, useClass: GroupsRepository },
-    { provide: GROUP_MATCHES_REPOSITORY, useClass: GroupMatchesRepository },
-    { provide: MATCH_PRESENCES_REPOSITORY, useClass: MatchPresencesRepository },
-    { provide: MATCH_TEAMS_REPOSITORY, useClass: MatchTeamsRepository },
-    { provide: MATCH_TEAM_PLAYERS_REPOSITORY, useClass: MatchTeamsPlayersRepository },
-    { provide: GROUP_PAYMENTS_REPOSITORY, useClass: GroupPaymentsRepository },
-    { provide: GROUP_INVITES_REPOSITORY, useClass: GroupInvitesRepository },
-    { provide: VERIFICATION_TOKENS_REPOSITORY, useClass: VerificationTokensRepository },
+    {
+      provide: GROUP_MATCHES_REPOSITORY,
+      useClass: GroupMatchesRepository,
+    },
+    {
+      provide: MATCH_PRESENCES_REPOSITORY,
+      useClass: MatchPresencesRepository,
+    },
+    {
+      provide: MATCH_TEAMS_REPOSITORY,
+      useClass: MatchTeamsRepository,
+    },
+    {
+      provide: MATCH_TEAM_PLAYERS_REPOSITORY,
+      useClass: MatchTeamsPlayersRepository,
+    },
+    {
+      provide: GROUP_PAYMENTS_REPOSITORY,
+      useClass: GroupPaymentsRepository,
+    },
+    {
+      provide: GROUP_INVITES_REPOSITORY,
+      useClass: GroupInvitesRepository,
+    },
+    {
+      provide: VERIFICATION_TOKENS_REPOSITORY,
+      useClass: VerificationTokensRepository,
+    },
   ],
   exports: [
     USERS_REPOSITORY,

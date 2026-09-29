@@ -1,13 +1,15 @@
 import {
   CanActivate,
   ExecutionContext,
+  Inject,
   Injectable,
   UnauthorizedException,
 } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import { JwtService } from "@nestjs/jwt";
 import { IS_PUBLIC_KEY } from "@src/shared/decorators/IsPublic";
-import { UsersRepository } from "@src/shared/database/repositories/users.repository";
+import { USERS_REPOSITORY } from "@src/shared/database/interfaces/users.repository.interface";
+import type { IUsersRepository } from "@src/shared/database/interfaces/users.repository.interface";
 import { Request } from "express";
 
 type AccessTokenPayload = {
@@ -20,7 +22,8 @@ export class AuthGuard implements CanActivate {
   constructor(
     private readonly jwtService: JwtService,
     private readonly reflector: Reflector,
-    private readonly usersRepository: UsersRepository,
+    @Inject(USERS_REPOSITORY)
+    private readonly usersRepository: IUsersRepository,
   ) {}
 
   async canActivate(
@@ -65,10 +68,7 @@ export class AuthGuard implements CanActivate {
     sub,
     iat,
   }: AccessTokenPayload) {
-    const user = await this.usersRepository.findUnique({
-      where: { id: sub },
-      select: { passwordChangedAt: true },
-    });
+    const user = await this.usersRepository.findById(sub);
     if (!user) {
       throw new UnauthorizedException();
     }

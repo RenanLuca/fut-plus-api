@@ -1,4 +1,8 @@
-import { CanActivate, ExecutionContext, Injectable } from "@nestjs/common";
+import {
+  CanActivate,
+  ExecutionContext,
+  Injectable,
+} from "@nestjs/common";
 import { Request } from "express";
 import { GroupsService } from "../services/groups.service";
 
@@ -6,7 +10,9 @@ import { GroupsService } from "../services/groups.service";
 export class GroupOwnerGuard implements CanActivate {
   constructor(private readonly groupsService: GroupsService) {}
 
-  async canActivate(context: ExecutionContext): Promise<boolean> {
+  async canActivate(
+    context: ExecutionContext,
+  ): Promise<boolean> {
     const request = context.switchToHttp().getRequest<Request>();
     const groupId = request.params.groupId as string;
     const userId = request.userId as string;

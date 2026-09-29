@@ -22,7 +22,8 @@ export class GroupInvitesService {
   ) {}
 
   async findByGroup(groupId: string) {
-    const invite = await this.groupInvitesRepository.findByGroupId(groupId);
+    const invite =
+      await this.groupInvitesRepository.findByGroupId(groupId);
     if (!invite) {
       throw new NotFoundException("Group has no active invite");
     }
@@ -45,24 +46,25 @@ export class GroupInvitesService {
   async preview(inviteId: string, userId: string) {
     const invite = await this.checkIfInviteExists(inviteId);
     const { group } = invite;
-    const member = await this.groupMembersRepository.findByGroupIdAndUserId(
-      group!.id,
-      userId,
-    );
+    const member =
+      await this.groupMembersRepository.findByGroupIdAndUserId(
+        group.id,
+        userId,
+      );
 
     return {
       id: invite.id,
       alreadyMember: !!member,
-      membersCount: group!._count.groupMembers,
+      membersCount: group._count.groupMembers,
       group: {
-        id: group!.id,
-        name: group!.name,
-        weekday: group!.weekday,
-        hour: group!.hour,
-        frequency: group!.frequency,
-        valuePerUser: group!.valuePerUser,
+        id: group.id,
+        name: group.name,
+        weekday: group.weekday,
+        hour: group.hour,
+        frequency: group.frequency,
+        valuePerUser: group.valuePerUser,
       },
-      owner: { name: group!.owner.name },
+      owner: { name: group.owner.name },
     };
   }
 
@@ -72,10 +74,11 @@ export class GroupInvitesService {
     { type, rank }: AcceptInviteDto,
   ) {
     const { groupId } = await this.checkIfInviteExists(inviteId);
-    const member = await this.groupMembersRepository.findByGroupIdAndUserId(
-      groupId,
-      userId,
-    );
+    const member =
+      await this.groupMembersRepository.findByGroupIdAndUserId(
+        groupId,
+        userId,
+      );
     if (member) {
       throw new ConflictException(
         "User already belongs to the group",
@@ -91,9 +94,10 @@ export class GroupInvitesService {
   }
 
   private async checkIfInviteExists(inviteId: string) {
-    const invite = await this.groupInvitesRepository.findById(inviteId, {
-      includeGroupWithDetails: true,
-    });
+    const invite =
+      await this.groupInvitesRepository.findByIdWithGroupDetails(
+        inviteId,
+      );
     if (!invite) {
       throw new NotFoundException("Invite not found or revoked");
     }

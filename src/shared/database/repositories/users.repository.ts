@@ -1,40 +1,72 @@
 import { Injectable } from "@nestjs/common";
-import { Prisma } from "../../../../generated/prisma/client";
 import { PrismaService } from "../prisma.service";
-import type { IUsersRepository } from "../interfaces/users.repository.interface";
-import type { User } from "../interfaces/users.repository.interface";
+import type {
+  IUsersRepository,
+  User,
+} from "../interfaces/users.repository.interface";
+import { PositionEnum } from "@src/shared/enum/positionEnum";
+import type { User as PrismaUser } from "../../../../generated/prisma/client";
 
 @Injectable()
 export class UsersRepository implements IUsersRepository {
   constructor(private readonly prisma: PrismaService) {}
+
   async create(data: {
     email: string;
     name: string;
-    passwordHash: string;
-    position?: string;
-    profilePicture?: string;
+    hashedPassword: string;
+    position: PositionEnum;
   }): Promise<User> {
-    return this.prisma.user.create({ data }) as Promise<User>;
+    const user = await this.prisma.user.create({ data });
+    return this.toDomain(user);
   }
 
   async findById(id: string): Promise<User | null> {
-    return this.prisma.user.findUnique({ where: { id } }) as Promise<User | null>;
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+    });
+    return user ? this.toDomain(user) : null;
   }
 
   async findByEmail(email: string): Promise<User | null> {
-    return this.prisma.user.findUnique({ where: { email } }) as Promise<User | null>;
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+    });
+    return user ? this.toDomain(user) : null;
   }
 
-  async update(id: string, data: Partial<Omit<User, 'id' | 'createdAt'>>): Promise<User> {
-    return this.prisma.user.update({ where: { id }, data }) as Promise<User>;
+  async update(
+    id: string,
+    data: Partial<
+      Pick<
+        User,
+        | "name"
+        | "telefone"
+        | "position"
+        | "profilePicture"
+        | "hashedPassword"
+        | "passwordChangedAt"
+        | "emailVerifiedAt"
+        | "email"
+        | "emailNotifications"
+      >
+    >,
+  ): Promise<User> {
+    const user = await this.prisma.user.update({
+      where: { id },
+      data,
+    });
+    return this.toDomain(user);
   }
 
   async delete(id: string): Promise<User> {
-    return this.prisma.user.delete({ where: { id } }) as Promise<User>;
+    const user = await this.prisma.user.delete({
+      where: { id },
+    });
+    return this.toDomain(user);
   }
 
-  // Métodos legados
-  async findUnique(findUniqueUserDto: Prisma.UserFindUniqueArgs) {
-    return this.prisma.user.findUnique(findUniqueUserDto);
+  private toDomain(user: PrismaUser): User {
+    return { ...user, position: user.position as PositionEnum };
   }
 }

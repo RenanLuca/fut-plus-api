@@ -2,8 +2,11 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Inject,
   UnauthorizedException,
 } from "@nestjs/common";
+import { USERS_REPOSITORY } from "@src/shared/database/interfaces/users.repository.interface";
+import type { IUsersRepository } from "@src/shared/database/interfaces/users.repository.interface";
 import { SigninDto } from "../dto/signin.dto";
 import { SignupDto } from "../dto/signup.dto";
 import { VerifyEmailDto } from "../dto/verifyEmail.dto";
@@ -12,7 +15,6 @@ import { ForgotPasswordDto } from "../dto/forgotPassword.dto";
 import { ResetPasswordDto } from "../dto/resetPassword.dto";
 import { resetPasswordTemplate } from "@src/modules/mail/templates/reset-password.template";
 import { passwordChangedTemplate } from "@src/modules/mail/templates/password-changed.template";
-import { UsersRepository } from "@src/shared/database/repositories/users.repository";
 import { compare, hash } from "bcryptjs";
 import { JwtService } from "@nestjs/jwt";
 import { env } from "@src/shared/config/env";
@@ -29,7 +31,8 @@ import { VerificationTokensService } from "./verification-tokens.service";
 @Injectable()
 export class AuthService {
   constructor(
-    private readonly usersRepository: UsersRepository,
+    @Inject(USERS_REPOSITORY)
+    private readonly usersRepository: IUsersRepository,
     private readonly jwtService: JwtService,
     private readonly mailService: MailService,
     private readonly verificationTokensService: VerificationTokensService,
@@ -38,11 +41,7 @@ export class AuthService {
   async signin(signinDto: SigninDto) {
     const { email, password } = signinDto;
 
-    const user = await this.usersRepository.findUnique({
-      where: {
-        email: email,
-      },
-    });
+    const user = await this.usersRepository.findByEmail(email);
 
     if (!user) {
       throw new UnauthorizedException("Invalid credentials");
@@ -70,11 +69,8 @@ export class AuthService {
   async signup(signupDto: SignupDto) {
     const { email, password, name, position } = signupDto;
 
-    const existingUser = await this.usersRepository.findUnique({
-      where: {
-        email: email,
-      },
-    });
+    const existingUser =
+      await this.usersRepository.findByEmail(email);
 
     if (existingUser) {
       throw new ConflictException("User already exists");
@@ -83,12 +79,10 @@ export class AuthService {
     const hashedPassword = await this.hashPassword(password, 10);
 
     const user = await this.usersRepository.create({
-      data: {
-        email: email,
-        hashedPassword: hashedPassword,
-        name: name,
-        position: position,
-      },
+      email: email,
+      hashedPassword: hashedPassword,
+      name: name,
+      position: position,
     });
 
     await this.sendVerificationEmail(user);
@@ -103,16 +97,13 @@ export class AuthService {
         VerificationTokenType.EMAIL_VERIFICATION,
       );
 
-    const user = await this.usersRepository.findUnique({
-      where: { id: userId },
-    });
+    const user = await this.usersRepository.findById(userId);
     if (!user || user.emailVerifiedAt) {
       return { message: "Email verified" };
     }
 
-    await this.usersRepository.update({
-      where: { id: userId },
-      data: { emailVerifiedAt: new Date() },
+    await this.usersRepository.update(userId, {
+      emailVerifiedAt: new Date(),
     });
 
     void this.mailService.send({
@@ -127,9 +118,7 @@ export class AuthService {
   }
 
   async resendVerification({ email }: ResendVerificationDto) {
-    const user = await this.usersRepository.findUnique({
-      where: { email },
-    });
+    const user = await this.usersRepository.findByEmail(email);
     if (user && !user.emailVerifiedAt) {
       await this.sendVerificationEmail(user);
     }
@@ -143,9 +132,7 @@ export class AuthService {
   }
 
   async forgotPassword({ email }: ForgotPasswordDto) {
-    const user = await this.usersRepository.findUnique({
-      where: { email },
-    });
+    const user = await this.usersRepository.findByEmail(email);
     if (user) {
       const token = await this.verificationTokensService.issue({
         userId: user.id,
@@ -176,9 +163,9 @@ export class AuthService {
       );
 
     const hashedPassword = await this.hashPassword(password, 10);
-    const user = await this.usersRepository.update({
-      where: { id: userId },
-      data: { hashedPassword, passwordChangedAt: new Date() },
+    const user = await this.usersRepository.update(userId, {
+      hashedPassword,
+      passwordChangedAt: new Date(),
     });
 
     void this.mailService.send({

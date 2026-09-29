@@ -1,12 +1,18 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
-import { GuestUsersRepository } from "@src/shared/database/repositories/guest-users.repository";
+import {
+  Injectable,
+  NotFoundException,
+  Inject,
+} from "@nestjs/common";
+import { GUEST_USERS_REPOSITORY } from "@src/shared/database/interfaces/guest-users.repository.interface";
+import type { IGuestUsersRepository } from "@src/shared/database/interfaces/guest-users.repository.interface";
 import { GroupMatchesService } from "../group-matches/services/group-matches.service";
 import { CreateMatchGuestDto } from "./dto/create-match-guest.dto";
 
 @Injectable()
 export class MatchGuestsService {
   constructor(
-    private readonly guestUsersRepository: GuestUsersRepository,
+    @Inject(GUEST_USERS_REPOSITORY)
+    private readonly guestUsersRepository: IGuestUsersRepository,
     private readonly groupMatchesService: GroupMatchesService,
   ) {}
 
@@ -19,7 +25,7 @@ export class MatchGuestsService {
       groupId,
       matchId,
     });
-    return this.guestUsersRepository.createConfirmedForMatch({
+    return this.guestUsersRepository.create({
       groupMatchId: matchId,
       ...createMatchGuestDto,
     });
@@ -34,10 +40,11 @@ export class MatchGuestsService {
       groupId,
       matchId,
     });
-    await this.checkIfGuestBelongsToMatch({ guestUserId, matchId });
-    await this.guestUsersRepository.delete({
-      where: { id: guestUserId },
+    await this.checkIfGuestBelongsToMatch({
+      guestUserId,
+      matchId,
     });
+    await this.guestUsersRepository.delete(guestUserId);
   }
 
   async checkIfGuestBelongsToMatch({
@@ -47,11 +54,15 @@ export class MatchGuestsService {
     guestUserId: string;
     matchId: string;
   }) {
-    const guestUser = await this.guestUsersRepository.findFirst({
-      where: { id: guestUserId, groupMatchId: matchId },
-    });
+    const guestUser =
+      await this.guestUsersRepository.findByIdAndGroupMatchId(
+        guestUserId,
+        matchId,
+      );
     if (!guestUser) {
-      throw new NotFoundException("Guest not found in this match");
+      throw new NotFoundException(
+        "Guest not found in this match",
+      );
     }
     return guestUser;
   }

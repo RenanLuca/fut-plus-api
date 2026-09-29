@@ -6,7 +6,15 @@ import { GroupOwnerGuard } from "./guards/group-owner.guard";
 
 @Module({
   controllers: [GroupsController],
-  providers: [GroupsService, UserBelongsToGroupService, GroupOwnerGuard],
-  exports: [GroupsService, UserBelongsToGroupService, GroupOwnerGuard],
+  providers: [
+    GroupsService,
+    UserBelongsToGroupService,
+    GroupOwnerGuard,
+  ],
+  exports: [
+    GroupsService,
+    UserBelongsToGroupService,
+    GroupOwnerGuard,
+  ],
 })
 export class GroupsModule {}

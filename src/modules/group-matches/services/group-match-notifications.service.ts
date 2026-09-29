@@ -49,10 +49,10 @@ export class GroupMatchNotificationsService {
         members
           .filter((m) => m.user)
           .map(({ user }) => ({
-            to: user!.email,
+            to: user.email,
             ...matchOpenedTemplate({
-              name: user!.name,
-              groupName: group!.name,
+              name: user.name,
+              groupName: group.name,
               matchDate,
               url: `${env.frontendUrl}/groups/${groupId}`,
             }),

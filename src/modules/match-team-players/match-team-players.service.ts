@@ -1,7 +1,12 @@
-import { ConflictException, Injectable } from "@nestjs/common";
+import {
+  ConflictException,
+  Injectable,
+  Inject,
+} from "@nestjs/common";
+import { MATCH_TEAM_PLAYERS_REPOSITORY } from "@src/shared/database/interfaces/match-team-players.repository.interface";
+import type { IMatchTeamPlayersRepository } from "@src/shared/database/interfaces/match-team-players.repository.interface";
 import { MatchTeamRosterDto } from "./dto/match-team-roster.dto";
 import { MatchTeamsService } from "../match-teams/match-teams.service";
-import { MatchTeamsPlayersRepository } from "@src/shared/database/repositories/match-team-players.repository";
 import { MatchTeamPlayerDto } from "./dto/match-team-player.dto";
 import { UserBelongsToGroupService } from "../groups/services/userBelongsToGroup.service";
 import { GroupMatchesService } from "../group-matches/services/group-matches.service";
@@ -14,7 +19,8 @@ export class MatchTeamPlayersService {
     private readonly userBelongsToGroupService: UserBelongsToGroupService,
     private readonly matchGuestsService: MatchGuestsService,
     private readonly matchTeamsService: MatchTeamsService,
-    private readonly matchTeamPlayersRepository: MatchTeamsPlayersRepository,
+    @Inject(MATCH_TEAM_PLAYERS_REPOSITORY)
+    private readonly matchTeamPlayersRepository: IMatchTeamPlayersRepository,
   ) {}
   async replaceAll(
     groupId: string,
@@ -46,19 +52,17 @@ export class MatchTeamPlayersService {
       }),
     );
     const teamsId = teams.map((team) => team.matchTeamId);
-    const createTeamPlayersDto = {
-      data: teams.flatMap((team) =>
-        team.players.map((player) => ({
-          matchTeamId: team.matchTeamId,
-          groupMatchId: matchId,
-          userId: player.userId,
-          guestUserId: player.guestUserId,
-        })),
-      ),
-    };
-    await this.matchTeamPlayersRepository.replaceAllPlayers(
-      createTeamPlayersDto,
+    const players = teams.flatMap((team) =>
+      team.players.map((player) => ({
+        matchTeamId: team.matchTeamId,
+        groupMatchId: matchId,
+        userId: player.userId,
+        guestUserId: player.guestUserId,
+      })),
+    );
+    await this.matchTeamPlayersRepository.replaceAllPlayersInTeams(
       teamsId,
+      players,
     );
   }
 
@@ -96,14 +100,14 @@ export class MatchTeamPlayersService {
         });
       }),
     );
-    return await this.matchTeamPlayersRepository.addPlayers({
-      data: players.map((player) => ({
+    return await this.matchTeamPlayersRepository.addPlayers(
+      players.map((player) => ({
         matchTeamId,
         groupMatchId: matchId,
         userId: player.userId,
         guestUserId: player.guestUserId,
       })),
-    });
+    );
   }
 
   private async checkPlayerBelongsToMatch({
@@ -155,12 +159,10 @@ export class MatchTeamPlayersService {
     guestUserId?: string;
   }) {
     const existing =
-      await this.matchTeamPlayersRepository.findFirst({
-        where: {
-          groupMatchId: matchId,
-          ...(userId ? { userId } : { guestUserId }),
-        },
-      });
+      await this.matchTeamPlayersRepository.findByMatchAndPlayer(
+        matchId,
+        { userId, guestUserId },
+      );
     if (existing) {
       throw new ConflictException(
         "Player is already assigned to a team in this match",

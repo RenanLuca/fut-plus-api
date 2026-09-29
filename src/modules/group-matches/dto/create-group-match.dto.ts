@@ -1,4 +1,8 @@
-import { IsDateString, IsNotEmpty, Matches } from "class-validator";
+import {
+  IsDateString,
+  IsNotEmpty,
+  Matches,
+} from "class-validator";
 
 export class CreateGroupMatchDto {
   @IsNotEmpty()

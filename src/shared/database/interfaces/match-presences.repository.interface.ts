@@ -1,4 +1,6 @@
-export const MATCH_PRESENCES_REPOSITORY = Symbol("MATCH_PRESENCES_REPOSITORY");
+export const MATCH_PRESENCES_REPOSITORY = Symbol(
+  "MATCH_PRESENCES_REPOSITORY",
+);
 
 export type GroupMatchPresence = {
   id: string;
@@ -10,16 +12,33 @@ export type GroupMatchPresence = {
   updatedAt: Date;
 };
 
-export interface IMatchPresencesRepository {
-  create(data: {
-    groupMatchId: string;
-    isPresent: boolean;
-    userId?: string;
-    guestUserId?: string;
-  }): Promise<GroupMatchPresence>;
+export type PresenceSummary = {
+  userId: string | null;
+  guestUserId: string | null;
+  isPresent: boolean;
+};
 
-  findById(id: string): Promise<GroupMatchPresence | null>;
-  findAllByGroupMatchId(groupMatchId: string): Promise<GroupMatchPresence[]>;
-  update(id: string, data: Partial<{ isPresent: boolean }>): Promise<GroupMatchPresence>;
-  delete(id: string): Promise<GroupMatchPresence>;
+export interface IMatchPresencesRepository {
+  findAllByGroupMatchId(
+    groupMatchId: string,
+  ): Promise<PresenceSummary[]>;
+
+  /**
+   * Creates the presence row if it doesn't exist yet, or flips
+   * `isPresent` if it does — a member can change their RSVP.
+   */
+  setUserPresence(
+    groupMatchId: string,
+    userId: string,
+    isPresent: boolean,
+  ): Promise<void>;
+
+  /**
+   * The user's presence for the match, together with the match's date
+   * (needed to tell whether the match has already happened).
+   */
+  findByMatchAndUserWithMatchDate(
+    groupMatchId: string,
+    userId: string,
+  ): Promise<{ isPresent: boolean; matchDate: Date } | null>;
 }

@@ -1,8 +1,15 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import {
+  Injectable,
+  NotFoundException,
+  Inject,
+} from "@nestjs/common";
+import { MATCH_PRESENCES_REPOSITORY } from "@src/shared/database/interfaces/match-presences.repository.interface";
+import type { IMatchPresencesRepository } from "@src/shared/database/interfaces/match-presences.repository.interface";
+import { GROUP_MEMBERS_REPOSITORY } from "@src/shared/database/interfaces/group-members.repository.interface";
+import type { IGroupMembersRepository } from "@src/shared/database/interfaces/group-members.repository.interface";
+import { GUEST_USERS_REPOSITORY } from "@src/shared/database/interfaces/guest-users.repository.interface";
+import type { IGuestUsersRepository } from "@src/shared/database/interfaces/guest-users.repository.interface";
 import { UpdateMatchPresenceDto } from "./dto/updateMatchPresence.dto";
-import { MatchPresencesRepository } from "@src/shared/database/repositories/match-presences.repository";
-import { GroupMembersRepository } from "@src/shared/database/repositories/group-members.repository";
-import { GuestUsersRepository } from "@src/shared/database/repositories/guest-users.repository";
 import { UserBelongsToGroupService } from "../groups/services/userBelongsToGroup.service";
 import { GroupMatchesService } from "../group-matches/services/group-matches.service";
 import {
@@ -23,9 +30,12 @@ type MatchPresenceMember = {
 @Injectable()
 export class MatchPresencesService {
   constructor(
-    private readonly matchPresencesRepository: MatchPresencesRepository,
-    private readonly groupMembersRepository: GroupMembersRepository,
-    private readonly guestUsersRepository: GuestUsersRepository,
+    @Inject(MATCH_PRESENCES_REPOSITORY)
+    private readonly matchPresencesRepository: IMatchPresencesRepository,
+    @Inject(GROUP_MEMBERS_REPOSITORY)
+    private readonly groupMembersRepository: IGroupMembersRepository,
+    @Inject(GUEST_USERS_REPOSITORY)
+    private readonly guestUsersRepository: IGuestUsersRepository,
     private readonly userBelongsToGroupService: UserBelongsToGroupService,
     private readonly groupMatchesService: GroupMatchesService,
   ) {}
@@ -45,37 +55,13 @@ export class MatchPresencesService {
     });
 
     const [members, guests, presences] = await Promise.all([
-      this.groupMembersRepository.findMany({
-        where: { groupId },
-        select: {
-          userId: true,
-          rank: true,
-          user: {
-            select: {
-              name: true,
-              position: true,
-              profilePicture: true,
-            },
-          },
-        },
-      }),
-      this.guestUsersRepository.findMany({
-        where: { groupMatchId: matchId },
-        select: {
-          id: true,
-          name: true,
-          position: true,
-          rank: true,
-        },
-      }),
-      this.matchPresencesRepository.findMany({
-        where: { groupMatchId: matchId },
-        select: {
-          userId: true,
-          guestUserId: true,
-          isPresent: true,
-        },
-      }),
+      this.groupMembersRepository.findAllByGroupIdWithUser(
+        groupId,
+      ),
+      this.guestUsersRepository.findAllByGroupMatchId(matchId),
+      this.matchPresencesRepository.findAllByGroupMatchId(
+        matchId,
+      ),
     ]);
 
     const presenceByMember = new Map<string, boolean>();
@@ -144,19 +130,11 @@ export class MatchPresencesService {
       groupId,
       matchId,
     });
-    await this.matchPresencesRepository.upsert({
-      where: {
-        groupMatchId_userId: { groupMatchId: matchId, userId },
-      },
-      create: {
-        groupMatchId: matchId,
-        userId,
-        isPresent: updateMatchPresenceDto.isPresent,
-      },
-      update: {
-        isPresent: updateMatchPresenceDto.isPresent,
-      },
-    });
+    await this.matchPresencesRepository.setUserPresence(
+      matchId,
+      userId,
+      updateMatchPresenceDto.isPresent,
+    );
     return {
       message: "Match presence updated successfully",
     };
@@ -170,22 +148,14 @@ export class MatchPresencesService {
     matchId: string;
   }) {
     const matchPresence =
-      await this.matchPresencesRepository.findOne({
-        where: {
-          groupMatchId_userId: { groupMatchId: matchId, userId },
-        },
-        select: {
-          groupMatch: {
-            select: { matchDate: true },
-          },
-          isPresent: true,
-          groupMatchId: true,
-        },
-      });
-    if (!matchPresence?.groupMatch.matchDate) {
+      await this.matchPresencesRepository.findByMatchAndUserWithMatchDate(
+        matchId,
+        userId,
+      );
+    if (!matchPresence) {
       throw new NotFoundException("Presence not found");
     }
-    if (matchPresence.groupMatch.matchDate > new Date()) {
+    if (matchPresence.matchDate > new Date()) {
       throw new NotFoundException("Match has not happened yet");
     }
     return matchPresence.isPresent;

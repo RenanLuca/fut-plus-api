@@ -3,16 +3,19 @@ import {
   BadRequestException,
   ConflictException,
   NotFoundException,
+  Inject,
 } from "@nestjs/common";
+import { GROUP_MATCHES_REPOSITORY } from "@src/shared/database/interfaces/group-matches.repository.interface";
+import type { IGroupMatchesRepository } from "@src/shared/database/interfaces/group-matches.repository.interface";
 import { UserBelongsToGroupService } from "@src/modules/groups/services/userBelongsToGroup.service";
-import { GroupMatchesRepository } from "@src/shared/database/repositories/group-matches.repository";
 import { CreateGroupMatchDto } from "../dto/create-group-match.dto";
 import { GroupMatchNotificationsService } from "./group-match-notifications.service";
 
 @Injectable()
 export class GroupMatchesService {
   constructor(
-    private readonly groupMatchesRepository: GroupMatchesRepository,
+    @Inject(GROUP_MATCHES_REPOSITORY)
+    private readonly groupMatchesRepository: IGroupMatchesRepository,
     private readonly usersBelongToGroupService: UserBelongsToGroupService,
     private readonly groupMatchNotificationsService: GroupMatchNotificationsService,
   ) {}
@@ -28,22 +31,18 @@ export class GroupMatchesService {
       );
     }
     const existingMatchInThisDate =
-      await this.groupMatchesRepository.findOne({
-        where: {
-          groupId,
-          matchDate: new Date(matchDate),
-        },
-      });
+      await this.groupMatchesRepository.findByGroupIdAndDate(
+        groupId,
+        new Date(matchDate),
+      );
     if (existingMatchInThisDate) {
       throw new ConflictException(
         "There's already a match scheduled for this date in this group",
       );
     }
     const match = await this.groupMatchesRepository.create({
-      data: {
-        ...createGroupMatchDto,
-        groupId,
-      },
+      groupId,
+      matchDate: new Date(matchDate),
     });
 
     // Runs for both manual creation and the scheduler, since both go
@@ -61,11 +60,7 @@ export class GroupMatchesService {
       memberId: userId,
       groupId,
     });
-    return this.groupMatchesRepository.findMany({
-      where: {
-        groupId,
-      },
-    });
+    return this.groupMatchesRepository.findAllByGroupId(groupId);
   }
 
   async findOne({
@@ -82,12 +77,11 @@ export class GroupMatchesService {
       groupId,
     });
     await this.checkIfMatchBelongsToGroup({ groupId, matchId });
-    const match = await this.groupMatchesRepository.findOne({
-      where: {
-        id: matchId,
+    const match =
+      await this.groupMatchesRepository.findByIdAndGroupId(
+        matchId,
         groupId,
-      },
-    });
+      );
     if (!match) {
       throw new NotFoundException("Match not found");
     }
@@ -96,9 +90,7 @@ export class GroupMatchesService {
 
   async remove(groupId: string, matchId: string) {
     await this.checkIfMatchBelongsToGroup({ groupId, matchId });
-    return this.groupMatchesRepository.delete({
-      where: { id: matchId },
-    });
+    return this.groupMatchesRepository.delete(matchId);
   }
 
   async checkIfMatchBelongsToGroup({
@@ -108,12 +100,11 @@ export class GroupMatchesService {
     groupId: string;
     matchId: string;
   }) {
-    const match = await this.groupMatchesRepository.findOne({
-      where: {
-        id: matchId,
+    const match =
+      await this.groupMatchesRepository.findByIdAndGroupId(
+        matchId,
         groupId,
-      },
-    });
+      );
     if (!match) {
       throw new NotFoundException(
         "Match not found in this group",

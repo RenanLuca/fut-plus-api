@@ -3,7 +3,12 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  Inject,
 } from "@nestjs/common";
+import { USERS_REPOSITORY } from "@src/shared/database/interfaces/users.repository.interface";
+import type { IUsersRepository } from "@src/shared/database/interfaces/users.repository.interface";
+import { GROUP_MATCHES_REPOSITORY } from "@src/shared/database/interfaces/group-matches.repository.interface";
+import type { IGroupMatchesRepository } from "@src/shared/database/interfaces/group-matches.repository.interface";
 import { compare, hash } from "bcryptjs";
 import { env } from "@src/shared/config/env";
 import { AuthService } from "@src/modules/auth/services/auth.service";
@@ -14,8 +19,6 @@ import { changeEmailTemplate } from "@src/modules/mail/templates/change-email.te
 import { emailChangedTemplate } from "@src/modules/mail/templates/email-changed.template";
 import { passwordChangedTemplate } from "@src/modules/mail/templates/password-changed.template";
 import { VerificationTokenType } from "../../../generated/prisma/client";
-import { UsersRepository } from "@src/shared/database/repositories/users.repository";
-import { GroupMatchesRepository } from "@src/shared/database/repositories/group-matches.repository";
 import { UpdateUserDto } from "./dto/updateUser.dto";
 import { ChangePasswordDto } from "./dto/changePassword.dto";
 import { ChangeEmailDto } from "./dto/changeEmail.dto";
@@ -24,18 +27,16 @@ import { ConfirmEmailChangeDto } from "./dto/confirmEmailChange.dto";
 @Injectable()
 export class UsersService {
   constructor(
-    private readonly usersRepository: UsersRepository,
-    private readonly groupMatchesRepository: GroupMatchesRepository,
+    @Inject(USERS_REPOSITORY)
+    private readonly usersRepository: IUsersRepository,
+    @Inject(GROUP_MATCHES_REPOSITORY)
+    private readonly groupMatchesRepository: IGroupMatchesRepository,
     private readonly authService: AuthService,
     private readonly verificationTokensService: VerificationTokensService,
     private readonly mailService: MailService,
   ) {}
   async checkIfUserExists(userId: string) {
-    const user = await this.usersRepository.findUnique({
-      where: {
-        id: userId,
-      },
-    });
+    const user = await this.usersRepository.findById(userId);
     if (!user) {
       throw new NotFoundException("User not found");
     }
@@ -43,11 +44,7 @@ export class UsersService {
   }
 
   private async checkEmailAvailability(email: string) {
-    const user = await this.usersRepository.findUnique({
-      where: {
-        email,
-      },
-    });
+    const user = await this.usersRepository.findByEmail(email);
     if (user) {
       throw new ConflictException("Email is already in use");
     }
@@ -61,12 +58,10 @@ export class UsersService {
 
   async update(userId: string, updateUserDto: UpdateUserDto) {
     await this.checkIfUserExists(userId);
-    const updatedUser = await this.usersRepository.update({
-      where: {
-        id: userId,
-      },
-      data: updateUserDto,
-    });
+    const updatedUser = await this.usersRepository.update(
+      userId,
+      updateUserDto,
+    );
     const { hashedPassword, ...userWithoutPassword } =
       updatedUser;
     return userWithoutPassword;
@@ -82,12 +77,9 @@ export class UsersService {
       user.hashedPassword,
     );
 
-    await this.usersRepository.update({
-      where: { id: userId },
-      data: {
-        hashedPassword: await hash(newPassword, 10),
-        passwordChangedAt: new Date(),
-      },
+    await this.usersRepository.update(userId, {
+      hashedPassword: await hash(newPassword, 10),
+      passwordChangedAt: new Date(),
     });
 
     void this.mailService.send({
@@ -155,10 +147,13 @@ export class UsersService {
     // the request and the confirmation.
     await this.checkEmailAvailability(newEmail);
 
-    const updatedUser = await this.usersRepository.update({
-      where: { id: userId },
-      data: { email: newEmail, emailVerifiedAt: new Date() },
-    });
+    const updatedUser = await this.usersRepository.update(
+      userId,
+      {
+        email: newEmail,
+        emailVerifiedAt: new Date(),
+      },
+    );
 
     void this.mailService.send({
       to: user.email,
@@ -184,27 +179,12 @@ export class UsersService {
 
   async delete(userId: string) {
     await this.checkIfUserExists(userId);
-    return this.usersRepository.delete({
-      where: {
-        id: userId,
-      },
-    });
+    return this.usersRepository.delete(userId);
   }
 
   async getUpcomingMatch(userId: string) {
-    return this.groupMatchesRepository.findOne({
-      where: {
-        matchDate: { gte: new Date() },
-        group: {
-          groupMembers: { some: { userId } },
-        },
-      },
-      orderBy: { matchDate: "asc" },
-      include: {
-        group: {
-          select: { id: true, name: true, valuePerUser: true },
-        },
-      },
-    });
+    return this.groupMatchesRepository.findUpcomingByUserId(
+      userId,
+    );
   }
 }

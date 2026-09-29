@@ -2,29 +2,34 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
+  Inject,
 } from "@nestjs/common";
+import { MATCH_TEAMS_REPOSITORY } from "@src/shared/database/interfaces/match-teams.repository.interface";
+import type { IMatchTeamsRepository } from "@src/shared/database/interfaces/match-teams.repository.interface";
+import { GROUP_MEMBERS_REPOSITORY } from "@src/shared/database/interfaces/group-members.repository.interface";
+import type { IGroupMembersRepository } from "@src/shared/database/interfaces/group-members.repository.interface";
+import { GUEST_USERS_REPOSITORY } from "@src/shared/database/interfaces/guest-users.repository.interface";
+import type { IGuestUsersRepository } from "@src/shared/database/interfaces/guest-users.repository.interface";
 import { CreateMatchTeamDto } from "./dto/create-match-team.dto";
 import { UpdateMatchTeamDto } from "./dto/update-match-team.dto";
 import { GenerateMatchTeamsDto } from "./dto/generate-match-teams.dto";
-import { MatchTeamsRepository } from "@src/shared/database/repositories/match-teams.repository";
-import { GroupMembersRepository } from "@src/shared/database/repositories/group-members.repository";
-import { GuestUsersRepository } from "@src/shared/database/repositories/guest-users.repository";
 import { UserBelongsToGroupService } from "../groups/services/userBelongsToGroup.service";
 import { balanceMembersIntoTeams } from "./utils/match-teams-balancer";
 import { TEAM_COLORS } from "./constants/teamColors";
 import { GroupMatchesService } from "../group-matches/services/group-matches.service";
 import { rankWeight } from "@src/shared/utils/rank-weight";
-import {
-  Position,
-  Rank,
-} from "../../../generated/prisma/client";
+import { PositionEnum } from "@src/shared/enum/positionEnum";
+import { UserRank } from "@src/shared/enum/userRank";
 
 @Injectable()
 export class MatchTeamsService {
   constructor(
-    private readonly matchTeamsRepository: MatchTeamsRepository,
-    private readonly groupMembersRepository: GroupMembersRepository,
-    private readonly guestUsersRepository: GuestUsersRepository,
+    @Inject(MATCH_TEAMS_REPOSITORY)
+    private readonly matchTeamsRepository: IMatchTeamsRepository,
+    @Inject(GROUP_MEMBERS_REPOSITORY)
+    private readonly groupMembersRepository: IGroupMembersRepository,
+    @Inject(GUEST_USERS_REPOSITORY)
+    private readonly guestUsersRepository: IGuestUsersRepository,
     private readonly groupMatchesService: GroupMatchesService,
     private readonly userBelongsToGroupService: UserBelongsToGroupService,
   ) {}
@@ -38,10 +43,8 @@ export class MatchTeamsService {
       matchId,
     });
     return await this.matchTeamsRepository.create({
-      data: {
-        ...createMatchTeamDto,
-        groupMatchId: matchId,
-      },
+      ...createMatchTeamDto,
+      groupMatchId: matchId,
     });
   }
 
@@ -59,30 +62,11 @@ export class MatchTeamsService {
       matchId,
     });
 
-    const matchTeams = await this.matchTeamsRepository.findAll({
-      where: {
-        groupMatchId: matchId,
-      },
-      include: {
-        matchTeamPlayers: {
-          select: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                position: true,
-                profilePicture: true,
-                groupMembers: {
-                  where: { groupId },
-                  select: { rank: true },
-                },
-              },
-            },
-            guestUser: true,
-          },
-        },
-      },
-    });
+    const matchTeams =
+      await this.matchTeamsRepository.findAllByGroupMatchIdWithPlayers(
+        matchId,
+        groupId,
+      );
 
     return matchTeams.map((matchTeam) =>
       this.formatMatchTeam(matchTeam),
@@ -103,31 +87,12 @@ export class MatchTeamsService {
       groupId,
       matchId,
     });
-    const matchTeam = await this.matchTeamsRepository.findOne({
-      where: {
-        id: matchTeamId,
-        groupMatchId: matchId,
-      },
-      include: {
-        matchTeamPlayers: {
-          select: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                position: true,
-                profilePicture: true,
-                groupMembers: {
-                  where: { groupId },
-                  select: { rank: true },
-                },
-              },
-            },
-            guestUser: true,
-          },
-        },
-      },
-    });
+    const matchTeam =
+      await this.matchTeamsRepository.findByIdWithPlayers(
+        matchTeamId,
+        matchId,
+        groupId,
+      );
     if (!matchTeam) {
       throw new NotFoundException(
         "Match team not found in this match",
@@ -151,14 +116,10 @@ export class MatchTeamsService {
       matchId,
     });
 
-    return this.matchTeamsRepository.update({
-      where: {
-        id: matchTeamId,
-      },
-      data: {
-        ...updateMatchTeamDto,
-      },
-    });
+    return this.matchTeamsRepository.update(
+      matchTeamId,
+      updateMatchTeamDto,
+    );
   }
 
   async generate(
@@ -175,28 +136,13 @@ export class MatchTeamsService {
 
     const [confirmedMembers, confirmedGuests] =
       await Promise.all([
-        this.groupMembersRepository.findMany({
-          where: {
-            groupId,
-            user: {
-              groupMatchPresences: {
-                some: { groupMatchId: matchId, isPresent: true },
-              },
-            },
-          },
-          select: {
-            userId: true,
-            rank: true,
-            user: { select: { position: true } },
-          },
-        }),
-        this.guestUsersRepository.findMany({
-          where: {
-            groupMatchId: matchId,
-            groupMatchPresences: { some: { isPresent: true } },
-          },
-          select: { id: true, rank: true, position: true },
-        }),
+        this.groupMembersRepository.findConfirmedByGroupMatchId(
+          groupId,
+          matchId,
+        ),
+        this.guestUsersRepository.findConfirmedByGroupMatchId(
+          matchId,
+        ),
       ]);
 
     const confirmed = [
@@ -204,7 +150,7 @@ export class MatchTeamsService {
         userId: member.userId,
         guestUserId: null,
         rank: member.rank,
-        position: member.user.position,
+        position: member.position,
       })),
       ...confirmedGuests.map((guest) => ({
         userId: null,
@@ -237,10 +183,10 @@ export class MatchTeamsService {
       players,
     }));
 
-    return this.matchTeamsRepository.regenerateTeams({
-      groupMatchId: matchId,
+    return this.matchTeamsRepository.regenerateTeams(
+      matchId,
       teams,
-    });
+    );
   }
 
   private formatMatchTeam<
@@ -249,11 +195,11 @@ export class MatchTeamsService {
         user: {
           id: string;
           name: string;
-          position: Position;
+          position: PositionEnum;
           profilePicture: string | null;
-          groupMembers: { rank: Rank | null }[];
+          groupMembers: { rank: UserRank | null }[];
         } | null;
-        guestUser: { rank: Rank } | null;
+        guestUser: { rank: UserRank } | null;
       }[];
     },
   >(matchTeam: T) {
@@ -286,12 +232,11 @@ export class MatchTeamsService {
     matchTeamId: string;
     matchId: string;
   }) {
-    const matchTeam = await this.matchTeamsRepository.findFirst({
-      where: {
-        id: matchTeamId,
-        groupMatchId: matchId,
-      },
-    });
+    const matchTeam =
+      await this.matchTeamsRepository.findByIdAndGroupMatchId(
+        matchTeamId,
+        matchId,
+      );
     if (!matchTeam) {
       throw new NotFoundException(
         "Match team not found in this match",

@@ -1,12 +1,8 @@
+import type { VerificationTokenType } from "../../../../generated/prisma/client";
+
 export const VERIFICATION_TOKENS_REPOSITORY = Symbol(
   "VERIFICATION_TOKENS_REPOSITORY",
 );
-
-export enum VerificationTokenType {
-  EMAIL_VERIFICATION = "EMAIL_VERIFICATION",
-  PASSWORD_RESET = "PASSWORD_RESET",
-  EMAIL_CHANGE = "EMAIL_CHANGE",
-}
 
 export type VerificationToken = {
   id: string;
@@ -28,16 +24,23 @@ export interface IVerificationTokensRepository {
     expiresAt: Date;
   }): Promise<VerificationToken>;
 
-  findById(id: string): Promise<VerificationToken | null>;
+  findByTokenHash(
+    tokenHash: string,
+  ): Promise<VerificationToken | null>;
 
-  findByTokenHash(tokenHash: string): Promise<VerificationToken | null>;
+  /**
+   * Invalidates every unused token of this user and type. Used before
+   * issuing a new one so only the most recent link stays valid.
+   */
+  invalidateActiveTokens(
+    userId: string,
+    type: VerificationTokenType,
+  ): Promise<void>;
 
-  update(
-    id: string,
-    data: Partial<{ usedAt: Date }>,
-  ): Promise<VerificationToken>;
-
-  delete(id: string): Promise<VerificationToken>;
-
-  deleteByUserId(userId: string): Promise<{ count: number }>;
+  /**
+   * Atomically marks the token as used only if it's still unused
+   * (`usedAt: null`). Returns whether the claim succeeded, so two
+   * concurrent requests for the same token can't both succeed.
+   */
+  markAsUsedIfUnused(id: string): Promise<{ claimed: boolean }>;
 }

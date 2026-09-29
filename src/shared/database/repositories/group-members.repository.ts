@@ -1,12 +1,16 @@
 import { Injectable } from "@nestjs/common";
-import { Prisma } from "../../../../generated/prisma/client";
 import { PrismaService } from "../prisma.service";
-import {
+import type {
+  ConfirmedMember,
   GroupMember,
+  GroupMemberWithUser,
   IGroupMembersRepository,
+  MemberWithNotificationEmail,
 } from "../interfaces/group-members.repository.interface";
 import { GroupMemberType } from "@src/shared/enum/groupMemberType";
+import { PositionEnum } from "@src/shared/enum/positionEnum";
 import { UserRank } from "@src/shared/enum/userRank";
+import type { GroupMember as PrismaGroupMember } from "../../../../generated/prisma/client";
 
 @Injectable()
 export class GroupMembersRepository implements IGroupMembersRepository {
@@ -24,13 +28,6 @@ export class GroupMembersRepository implements IGroupMembersRepository {
     return this.toDomain(member);
   }
 
-  async findById(id: string): Promise<GroupMember | null> {
-    const member = await this.prisma.groupMember.findUnique({
-      where: { id },
-    });
-    return member ? this.toDomain(member) : null;
-  }
-
   async findByGroupIdAndUserId(
     groupId: string,
     userId: string,
@@ -41,33 +38,34 @@ export class GroupMembersRepository implements IGroupMembersRepository {
     return member ? this.toDomain(member) : null;
   }
 
-  async findAllByGroupId(
+  async findAllByGroupIdWithUser(
     groupId: string,
-    options?: {
-      includeUser?: boolean;
-    },
-  ): Promise<(GroupMember & {
-    user?: { name: string; email: string; emailNotifications: boolean; emailVerifiedAt: Date | null } | null;
-  })[]> {
+  ): Promise<GroupMemberWithUser[]> {
     const members = await this.prisma.groupMember.findMany({
       where: { groupId },
       include: {
-        user: options?.includeUser
-          ? { select: { name: true, email: true, emailNotifications: true, emailVerifiedAt: true } }
-          : false,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            position: true,
+            profilePicture: true,
+          },
+        },
       },
     });
-    return members.map((m) => ({
-      ...this.toDomain(m),
-      user: m.user || undefined,
-    })) as any;
+    return members.map((member) => ({
+      ...this.toDomain(member),
+      user: {
+        ...member.user,
+        position: member.user.position as PositionEnum,
+      },
+    }));
   }
 
   async findAllByGroupIdWithNotificationFilters(
     groupId: string,
-  ): Promise<(GroupMember & {
-    user?: { name: string; email: string } | null;
-  })[]> {
+  ): Promise<MemberWithNotificationEmail[]> {
     const members = await this.prisma.groupMember.findMany({
       where: {
         groupId,
@@ -80,52 +78,48 @@ export class GroupMembersRepository implements IGroupMembersRepository {
         user: { select: { name: true, email: true } },
       },
     });
-    return members.map((m) => ({
-      ...this.toDomain(m),
-      user: m.user || undefined,
-    })) as any;
+    return members.map((member) => ({
+      ...this.toDomain(member),
+      user: member.user,
+    }));
   }
 
-  async delete(id: string): Promise<GroupMember> {
-    const member = await this.prisma.groupMember.delete({
-      where: { id },
+  async findConfirmedByGroupMatchId(
+    groupId: string,
+    groupMatchId: string,
+  ): Promise<ConfirmedMember[]> {
+    const members = await this.prisma.groupMember.findMany({
+      where: {
+        groupId,
+        user: {
+          groupMatchPresences: {
+            some: { groupMatchId, isPresent: true },
+          },
+        },
+      },
+      select: {
+        userId: true,
+        rank: true,
+        user: { select: { position: true } },
+      },
     });
-    return this.toDomain(member);
+    return members.map((member) => ({
+      userId: member.userId,
+      rank: member.rank as UserRank | null,
+      position: member.user.position as PositionEnum,
+    }));
   }
 
-  // Métodos legados para compatibilidade com serviços não migrados
-  async findUnique(
-    findUniqueGroupMemberDto: Prisma.GroupMemberFindUniqueArgs,
-  ) {
-    return this.prisma.groupMember.findUnique(
-      findUniqueGroupMemberDto,
-    );
+  async removeByGroupIdAndUserId(
+    groupId: string,
+    userId: string,
+  ): Promise<void> {
+    await this.prisma.groupMember.delete({
+      where: { groupId_userId: { groupId, userId } },
+    });
   }
 
-  async findFirst(
-    findFirstGroupMemberDto: Prisma.GroupMemberFindFirstArgs,
-  ) {
-    return this.prisma.groupMember.findFirst(
-      findFirstGroupMemberDto,
-    );
-  }
-
-  async findMany<T extends Prisma.GroupMemberFindManyArgs>(
-    findManyGroupMemberDto: Prisma.SelectSubset<
-      T,
-      Prisma.GroupMemberFindManyArgs
-    >,
-  ) {
-    return this.prisma.groupMember.findMany(findManyGroupMemberDto);
-  }
-
-  async deleteLegacy(
-    deleteGroupMemberDto: Prisma.GroupMemberDeleteArgs,
-  ) {
-    return this.prisma.groupMember.delete(deleteGroupMemberDto);
-  }
-
-  private toDomain(member: any): GroupMember {
+  private toDomain(member: PrismaGroupMember): GroupMember {
     return {
       ...member,
       type: member.type as GroupMemberType,

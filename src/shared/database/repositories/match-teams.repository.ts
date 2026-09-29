@@ -1,43 +1,178 @@
 import { Injectable } from "@nestjs/common";
-import { Prisma } from "../../../../generated/prisma/client";
 import { PrismaService } from "../prisma.service";
-import type { IMatchTeamsRepository } from "../interfaces/match-teams.repository.interface";
-import type { MatchTeam } from "../interfaces/match-teams.repository.interface";
+import type {
+  IMatchTeamsRepository,
+  MatchTeam,
+  MatchTeamWithPlayers,
+  TeamToCreate,
+} from "../interfaces/match-teams.repository.interface";
+import { PositionEnum } from "@src/shared/enum/positionEnum";
+import { UserRank } from "@src/shared/enum/userRank";
 
 @Injectable()
 export class MatchTeamsRepository implements IMatchTeamsRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(data: { groupMatchId: string; name: string; color: string }): Promise<MatchTeam> {
-    return this.prisma.matchTeam.create({ data }) as Promise<MatchTeam>;
+  async create(data: {
+    groupMatchId: string;
+    name: string;
+    color: string;
+  }): Promise<MatchTeam> {
+    return this.prisma.matchTeam.create({ data });
   }
 
-  async findById(id: string): Promise<MatchTeam | null> {
-    return this.prisma.matchTeam.findUnique({ where: { id } }) as Promise<MatchTeam | null>;
+  async findByIdAndGroupMatchId(
+    id: string,
+    groupMatchId: string,
+  ): Promise<MatchTeam | null> {
+    return this.prisma.matchTeam.findFirst({
+      where: { id, groupMatchId },
+    });
   }
 
-  async findAllByGroupMatchId(groupMatchId: string): Promise<MatchTeam[]> {
-    return this.prisma.matchTeam.findMany({ where: { groupMatchId } }) as Promise<MatchTeam[]>;
+  async findAllByGroupMatchIdWithPlayers(
+    groupMatchId: string,
+    groupId: string,
+  ): Promise<MatchTeamWithPlayers[]> {
+    const teams = await this.prisma.matchTeam.findMany({
+      where: { groupMatchId },
+      include: {
+        matchTeamPlayers: {
+          select: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                position: true,
+                profilePicture: true,
+                groupMembers: {
+                  where: { groupId },
+                  select: { rank: true },
+                },
+              },
+            },
+            guestUser: true,
+          },
+        },
+      },
+    });
+    return teams.map((team) => this.toDomain(team));
   }
 
-  async update(id: string, data: Partial<{ name: string; color: string }>): Promise<MatchTeam> {
-    return this.prisma.matchTeam.update({ where: { id }, data }) as Promise<MatchTeam>;
+  async findByIdWithPlayers(
+    id: string,
+    groupMatchId: string,
+    groupId: string,
+  ): Promise<MatchTeamWithPlayers | null> {
+    const team = await this.prisma.matchTeam.findFirst({
+      where: { id, groupMatchId },
+      include: {
+        matchTeamPlayers: {
+          select: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                position: true,
+                profilePicture: true,
+                groupMembers: {
+                  where: { groupId },
+                  select: { rank: true },
+                },
+              },
+            },
+            guestUser: true,
+          },
+        },
+      },
+    });
+    return team ? this.toDomain(team) : null;
   }
 
-  async delete(id: string): Promise<MatchTeam> {
-    return this.prisma.matchTeam.delete({ where: { id } }) as Promise<MatchTeam>;
+  async update(
+    id: string,
+    data: Partial<{ name: string; color: string }>,
+  ): Promise<MatchTeam> {
+    return this.prisma.matchTeam.update({ where: { id }, data });
   }
 
-  // Métodos legados
-  async findUnique<T extends Prisma.MatchTeamFindUniqueArgs>(
-    args: Prisma.SelectSubset<T, Prisma.MatchTeamFindUniqueArgs>,
-  ) {
-    return this.prisma.matchTeam.findUnique(args);
+  async regenerateTeams(
+    groupMatchId: string,
+    teams: TeamToCreate[],
+  ): Promise<MatchTeam[]> {
+    return this.prisma.$transaction(async (tx) => {
+      await tx.matchTeam.deleteMany({ where: { groupMatchId } });
+      const created: MatchTeam[] = [];
+      for (const team of teams) {
+        const matchTeam = await tx.matchTeam.create({
+          data: {
+            groupMatchId,
+            name: team.name,
+            color: team.color,
+          },
+        });
+        if (team.players.length > 0) {
+          await tx.matchTeamPlayer.createMany({
+            data: team.players.map((player) => ({
+              matchTeamId: matchTeam.id,
+              groupMatchId,
+              userId: player.userId,
+              guestUserId: player.guestUserId,
+            })),
+          });
+        }
+        created.push(matchTeam);
+      }
+      return created;
+    });
   }
 
-  async findMany<T extends Prisma.MatchTeamFindManyArgs>(
-    args: Prisma.SelectSubset<T, Prisma.MatchTeamFindManyArgs>,
-  ) {
-    return this.prisma.matchTeam.findMany(args);
+  private toDomain(team: {
+    id: string;
+    groupMatchId: string;
+    name: string;
+    color: string;
+    createdAt: Date;
+    updatedAt: Date;
+    matchTeamPlayers: {
+      user: {
+        id: string;
+        name: string;
+        position: string;
+        profilePicture: string | null;
+        groupMembers: { rank: string | null }[];
+      } | null;
+      guestUser: {
+        id: string;
+        name: string;
+        rank: string;
+        position: string;
+      } | null;
+    }[];
+  }): MatchTeamWithPlayers {
+    return {
+      ...team,
+      matchTeamPlayers: team.matchTeamPlayers.map((player) => ({
+        user: player.user
+          ? {
+              ...player.user,
+              position: player.user.position as PositionEnum,
+              groupMembers: player.user.groupMembers.map(
+                (gm) => ({
+                  rank: gm.rank as UserRank | null,
+                }),
+              ),
+            }
+          : null,
+        guestUser: player.guestUser
+          ? {
+              ...player.guestUser,
+              rank: player.guestUser.rank as UserRank,
+              position: player.guestUser
+                .position as PositionEnum,
+            }
+          : null,
+      })),
+    };
   }
 }

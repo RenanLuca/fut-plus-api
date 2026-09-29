@@ -3,12 +3,15 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  Inject,
 } from "@nestjs/common";
+import { GROUP_PAYMENTS_REPOSITORY } from "@src/shared/database/interfaces/group-payments.repository.interface";
+import type { IGroupPaymentsRepository } from "@src/shared/database/interfaces/group-payments.repository.interface";
+import { GROUP_MATCHES_REPOSITORY } from "@src/shared/database/interfaces/group-matches.repository.interface";
+import type { IGroupMatchesRepository } from "@src/shared/database/interfaces/group-matches.repository.interface";
 import { MatchPresencesService } from "../match-presences/match-presences.service";
 import { CreateGroupPaymentDto } from "./dto/create-group-payment.dto";
 import { UpdateGroupPaymentDto } from "./dto/update-group-payment.dto";
-import { GroupPaymentsRepository } from "@src/shared/database/repositories/group-payments.repository";
-import { GroupMatchesRepository } from "@src/shared/database/repositories/group-matches.repository";
 import { UserBelongsToGroupService } from "../groups/services/userBelongsToGroup.service";
 import { GroupMatchesService } from "../group-matches/services/group-matches.service";
 import { getBrazilCurrentMonthStart } from "@src/shared/utils/brazil-date";
@@ -24,8 +27,10 @@ import { GroupsService } from "../groups/services/groups.service";
 @Injectable()
 export class GroupPaymentsService {
   constructor(
-    private readonly groupPaymentsRepository: GroupPaymentsRepository,
-    private readonly groupMatchesRepository: GroupMatchesRepository,
+    @Inject(GROUP_PAYMENTS_REPOSITORY)
+    private readonly groupPaymentsRepository: IGroupPaymentsRepository,
+    @Inject(GROUP_MATCHES_REPOSITORY)
+    private readonly groupMatchesRepository: IGroupMatchesRepository,
     private readonly userBelongsToGroupService: UserBelongsToGroupService,
     private readonly groupMatchesService: GroupMatchesService,
     private readonly matchPresencesService: MatchPresencesService,
@@ -81,14 +86,12 @@ export class GroupPaymentsService {
     }
 
     return this.groupPaymentsRepository.create({
-      data: {
-        amount,
-        receipt,
-        groupId,
-        userId,
-        matchId,
-        period,
-      },
+      amount,
+      receipt,
+      groupId,
+      userId,
+      matchId,
+      period,
     });
   }
 
@@ -96,20 +99,15 @@ export class GroupPaymentsService {
     groupId: string,
     { page, limit, month, year }: PaymentFilterQueryDto,
   ) {
-    const where = {
-      groupId,
-      ...this.buildPeriodFilter({ month, year }),
-    };
     const skip = getSkip(page, limit);
-    const [data, total] = await Promise.all([
-      this.groupPaymentsRepository.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { createdAt: "desc" },
-      }),
-      this.groupPaymentsRepository.count({ where }),
-    ]);
+    const { data, total } =
+      await this.groupPaymentsRepository.findManyPaginated(
+        {
+          groupId,
+          period: this.buildPeriodFilter({ month, year }),
+        },
+        { skip, take: limit },
+      );
     return {
       data,
       meta: buildPaginationMeta(page, limit, total),
@@ -125,21 +123,16 @@ export class GroupPaymentsService {
       memberId: userId,
       groupId,
     });
-    const where = {
-      groupId,
-      userId,
-      ...this.buildPeriodFilter({ month, year }),
-    };
     const skip = getSkip(page, limit);
-    const [data, total] = await Promise.all([
-      this.groupPaymentsRepository.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { createdAt: "desc" },
-      }),
-      this.groupPaymentsRepository.count({ where }),
-    ]);
+    const { data, total } =
+      await this.groupPaymentsRepository.findManyPaginated(
+        {
+          groupId,
+          userId,
+          period: this.buildPeriodFilter({ month, year }),
+        },
+        { skip, take: limit },
+      );
     return {
       data,
       meta: buildPaginationMeta(page, limit, total),
@@ -151,17 +144,10 @@ export class GroupPaymentsService {
       memberId: userId,
       groupId,
     });
-    return this.groupMatchesRepository.findMany({
-      where: {
-        groupId,
-        matchDate: { lt: new Date() },
-        groupMatchPresences: {
-          some: { userId, isPresent: true },
-        },
-        groupPayments: { none: { userId } },
-      },
-      orderBy: { matchDate: "desc" },
-    });
+    return this.groupMatchesRepository.findUnpaidAttendedMatches(
+      groupId,
+      userId,
+    );
   }
 
   async findOne({
@@ -183,12 +169,10 @@ export class GroupPaymentsService {
     );
 
     const payment =
-      await this.groupPaymentsRepository.findUnique({
-        where: {
-          id: paymentId,
-          groupId,
-        },
-      });
+      await this.groupPaymentsRepository.findByIdAndGroupId(
+        paymentId,
+        groupId,
+      );
     if (!payment) {
       throw new NotFoundException("Payment not found");
     }
@@ -206,16 +190,15 @@ export class GroupPaymentsService {
   }: {
     month?: number;
     year?: number;
-  }) {
+  }): { gte: Date; lt: Date } | undefined {
     if (!year) {
       if (month) {
         throw new BadRequestException(
           "year is required when filtering by month",
         );
       }
-      return {};
+      return undefined;
     }
-    const { gte, lt } = getPeriodRange({ year, month });
-    return { period: { gte, lt } };
+    return getPeriodRange({ year, month });
   }
 }

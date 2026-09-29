@@ -1,35 +1,50 @@
 import { Injectable } from "@nestjs/common";
-import { Prisma } from "../../../../generated/prisma/client";
 import { PrismaService } from "../prisma.service";
-import type { IGroupPaymentsRepository } from "../interfaces/group-payments.repository.interface";
-import type { GroupPayment } from "../interfaces/group-payments.repository.interface";
+import type {
+  GroupPayment,
+  GroupPaymentFilters,
+  IGroupPaymentsRepository,
+  Pagination,
+} from "../interfaces/group-payments.repository.interface";
 
 @Injectable()
 export class GroupPaymentsRepository implements IGroupPaymentsRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(data: { groupId: string; userId: string; matchId?: string; period: Date; amount: number; receipt?: string }): Promise<GroupPayment> {
-    return this.prisma.groupPayment.create({ data }) as Promise<GroupPayment>;
+  async create(data: {
+    groupId: string;
+    userId: string;
+    matchId?: string | null;
+    period: Date | string;
+    amount: number;
+    receipt?: string;
+  }): Promise<GroupPayment> {
+    return this.prisma.groupPayment.create({ data });
   }
-  async findById(id: string): Promise<GroupPayment | null> {
-    return this.prisma.groupPayment.findUnique({ where: { id } }) as Promise<GroupPayment | null>;
+
+  async findByIdAndGroupId(
+    id: string,
+    groupId: string,
+  ): Promise<GroupPayment | null> {
+    return this.prisma.groupPayment.findFirst({
+      where: { id, groupId },
+    });
   }
-  async findAllByGroupId(groupId: string): Promise<GroupPayment[]> {
-    return this.prisma.groupPayment.findMany({ where: { groupId } }) as Promise<GroupPayment[]>;
-  }
-  async update(id: string, data: Partial<Omit<GroupPayment, 'id' | 'createdAt' | 'updatedAt'>>): Promise<GroupPayment> {
-    return this.prisma.groupPayment.update({ where: { id }, data }) as Promise<GroupPayment>;
-  }
-  async delete(id: string): Promise<GroupPayment> {
-    return this.prisma.groupPayment.delete({ where: { id } }) as Promise<GroupPayment>;
-  }
-  async count<T extends Prisma.GroupPaymentCountArgs>(args?: Prisma.SelectSubset<T, Prisma.GroupPaymentCountArgs>) {
-    return this.prisma.groupPayment.count(args);
-  }
-  async findUnique<T extends Prisma.GroupPaymentFindUniqueArgs>(args: Prisma.SelectSubset<T, Prisma.GroupPaymentFindUniqueArgs>) {
-    return this.prisma.groupPayment.findUnique(args);
-  }
-  async findMany<T extends Prisma.GroupPaymentFindManyArgs>(args: Prisma.SelectSubset<T, Prisma.GroupPaymentFindManyArgs>) {
-    return this.prisma.groupPayment.findMany(args);
+
+  async findManyPaginated(
+    { groupId, userId, period }: GroupPaymentFilters,
+    { skip, take }: Pagination,
+  ): Promise<{ data: GroupPayment[]; total: number }> {
+    const where = { groupId, userId, period };
+    const [data, total] = await Promise.all([
+      this.prisma.groupPayment.findMany({
+        where,
+        skip,
+        take,
+        orderBy: { createdAt: "desc" },
+      }),
+      this.prisma.groupPayment.count({ where }),
+    ]);
+    return { data, total };
   }
 }

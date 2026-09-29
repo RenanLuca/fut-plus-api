@@ -5,36 +5,34 @@ export const GROUP_INVITES_REPOSITORY = Symbol(
 export type GroupInvite = {
   id: string;
   groupId: string;
-  code: string;
   createdAt: Date;
-  expiresAt: Date;
+};
+
+export type GroupInviteWithGroup = GroupInvite & {
+  group: {
+    id: string;
+    name: string;
+    weekday: string;
+    hour: string;
+    frequency: string;
+    valuePerUser: number;
+    owner: { name: string };
+    _count: { groupMembers: number };
+  };
 };
 
 export interface IGroupInvitesRepository {
-  findByGroupId(
-    groupId: string,
-  ): Promise<GroupInvite | null>;
+  findByGroupId(groupId: string): Promise<GroupInvite | null>;
 
-  findById(
+  findById(id: string): Promise<GroupInvite | null>;
+
+  /**
+   * The invite together with the group's display info, its owner's
+   * name and its member count — everything the invite preview needs.
+   */
+  findByIdWithGroupDetails(
     id: string,
-    options?: {
-      includeGroupWithDetails?: boolean;
-    },
-  ): Promise<
-    | (GroupInvite & {
-        group?: {
-          id: string;
-          name: string;
-          weekday: string;
-          hour: string;
-          frequency: string;
-          valuePerUser: number;
-          owner: { name: string };
-          _count: { groupMembers: number };
-        };
-      })
-    | null
-  >;
+  ): Promise<GroupInviteWithGroup | null>;
 
   replaceForGroup(groupId: string): Promise<GroupInvite>;
 

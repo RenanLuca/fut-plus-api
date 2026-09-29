@@ -1,6 +1,11 @@
-import { BadRequestException, Injectable } from "@nestjs/common";
+import {
+  BadRequestException,
+  Injectable,
+  Inject,
+} from "@nestjs/common";
 import { createHash, randomBytes } from "node:crypto";
-import { VerificationTokensRepository } from "@src/shared/database/repositories/verification-tokens.repository";
+import { VERIFICATION_TOKENS_REPOSITORY } from "@src/shared/database/interfaces/verification-tokens.repository.interface";
+import type { IVerificationTokensRepository } from "@src/shared/database/interfaces/verification-tokens.repository.interface";
 import { VerificationTokenType } from "../../../../generated/prisma/client";
 
 function hashToken(token: string): string {
@@ -10,7 +15,8 @@ function hashToken(token: string): string {
 @Injectable()
 export class VerificationTokensService {
   constructor(
-    private readonly verificationTokensRepository: VerificationTokensRepository,
+    @Inject(VERIFICATION_TOKENS_REPOSITORY)
+    private readonly verificationTokensRepository: IVerificationTokensRepository,
   ) {}
 
   /**
@@ -30,20 +36,18 @@ export class VerificationTokensService {
     ttlMs: number;
     newEmail?: string;
   }): Promise<string> {
-    await this.verificationTokensRepository.updateMany({
-      where: { userId, type, usedAt: null },
-      data: { usedAt: new Date() },
-    });
+    await this.verificationTokensRepository.invalidateActiveTokens(
+      userId,
+      type,
+    );
 
     const token = randomBytes(32).toString("hex");
     await this.verificationTokensRepository.create({
-      data: {
-        userId,
-        type,
-        newEmail,
-        tokenHash: hashToken(token),
-        expiresAt: new Date(Date.now() + ttlMs),
-      },
+      userId,
+      type,
+      newEmail,
+      tokenHash: hashToken(token),
+      expiresAt: new Date(Date.now() + ttlMs),
     });
     return token;
   }
@@ -55,9 +59,9 @@ export class VerificationTokensService {
    */
   async consume(token: string, type: VerificationTokenType) {
     const record =
-      await this.verificationTokensRepository.findUnique({
-        where: { tokenHash: hashToken(token) },
-      });
+      await this.verificationTokensRepository.findByTokenHash(
+        hashToken(token),
+      );
 
     if (
       !record ||
@@ -70,12 +74,11 @@ export class VerificationTokensService {
 
     // The `usedAt: null` filter makes the claim atomic: if two requests
     // race with the same token, only one of them updates a row.
-    const { count } =
-      await this.verificationTokensRepository.updateMany({
-        where: { id: record.id, usedAt: null },
-        data: { usedAt: new Date() },
-      });
-    if (count === 0) {
+    const { claimed } =
+      await this.verificationTokensRepository.markAsUsedIfUnused(
+        record.id,
+      );
+    if (!claimed) {
       throw new BadRequestException("Invalid or expired token");
     }
 

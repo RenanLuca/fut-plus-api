@@ -1,79 +1,43 @@
 import { Injectable } from "@nestjs/common";
-import {
-  MatchTeam,
-  Prisma,
-} from "../../../../generated/prisma/client";
+import { Prisma } from "../../../../generated/prisma/client";
 import { PrismaService } from "../prisma.service";
+import type { IMatchTeamsRepository } from "../interfaces/match-teams.repository.interface";
+import type { MatchTeam } from "../interfaces/match-teams.repository.interface";
 
 @Injectable()
-export class MatchTeamsRepository {
+export class MatchTeamsRepository implements IMatchTeamsRepository {
   constructor(private readonly prisma: PrismaService) {}
-  async create(createMatchTeamDto: Prisma.MatchTeamCreateArgs) {
-    return this.prisma.matchTeam.create(createMatchTeamDto);
-  }
-  async findAll<T extends Prisma.MatchTeamFindManyArgs>(
-    findAllMatchTeamsDto: Prisma.SelectSubset<
-      T,
-      Prisma.MatchTeamFindManyArgs
-    >,
-  ) {
-    return this.prisma.matchTeam.findMany(findAllMatchTeamsDto);
-  }
-  async findOne<T extends Prisma.MatchTeamFindUniqueArgs>(
-    findOneMatchTeamDto: Prisma.SelectSubset<
-      T,
-      Prisma.MatchTeamFindUniqueArgs
-    >,
-  ) {
-    return this.prisma.matchTeam.findUnique(findOneMatchTeamDto);
-  }
-  async findFirst(
-    findFirstMatchTeamDto: Prisma.MatchTeamFindFirstArgs,
-  ) {
-    return this.prisma.matchTeam.findFirst(
-      findFirstMatchTeamDto,
-    );
-  }
-  async update(updateMatchTeamDto: Prisma.MatchTeamUpdateArgs) {
-    return this.prisma.matchTeam.update(updateMatchTeamDto);
+
+  async create(data: { groupMatchId: string; name: string; color: string }): Promise<MatchTeam> {
+    return this.prisma.matchTeam.create({ data }) as Promise<MatchTeam>;
   }
 
-  async regenerateTeams({
-    groupMatchId,
-    teams,
-  }: {
-    groupMatchId: string;
-    teams: {
-      name: string;
-      color: string;
-      players: { userId?: string; guestUserId?: string }[];
-    }[];
-  }) {
-    return this.prisma.$transaction(async (tx) => {
-      await tx.matchTeam.deleteMany({ where: { groupMatchId } });
+  async findById(id: string): Promise<MatchTeam | null> {
+    return this.prisma.matchTeam.findUnique({ where: { id } }) as Promise<MatchTeam | null>;
+  }
 
-      const createdTeams: MatchTeam[] = [];
-      for (const team of teams) {
-        const createdTeam = await tx.matchTeam.create({
-          data: {
-            groupMatchId,
-            name: team.name,
-            color: team.color,
-          },
-        });
-        if (team.players.length > 0) {
-          await tx.matchTeamPlayer.createMany({
-            data: team.players.map((player) => ({
-              matchTeamId: createdTeam.id,
-              groupMatchId,
-              userId: player.userId,
-              guestUserId: player.guestUserId,
-            })),
-          });
-        }
-        createdTeams.push(createdTeam);
-      }
-      return createdTeams;
-    });
+  async findAllByGroupMatchId(groupMatchId: string): Promise<MatchTeam[]> {
+    return this.prisma.matchTeam.findMany({ where: { groupMatchId } }) as Promise<MatchTeam[]>;
+  }
+
+  async update(id: string, data: Partial<{ name: string; color: string }>): Promise<MatchTeam> {
+    return this.prisma.matchTeam.update({ where: { id }, data }) as Promise<MatchTeam>;
+  }
+
+  async delete(id: string): Promise<MatchTeam> {
+    return this.prisma.matchTeam.delete({ where: { id } }) as Promise<MatchTeam>;
+  }
+
+  // Métodos legados
+  async findUnique<T extends Prisma.MatchTeamFindUniqueArgs>(
+    args: Prisma.SelectSubset<T, Prisma.MatchTeamFindUniqueArgs>,
+  ) {
+    return this.prisma.matchTeam.findUnique(args);
+  }
+
+  async findMany<T extends Prisma.MatchTeamFindManyArgs>(
+    args: Prisma.SelectSubset<T, Prisma.MatchTeamFindManyArgs>,
+  ) {
+    return this.prisma.matchTeam.findMany(args);
   }
 }

@@ -18,7 +18,8 @@ import { passwordChangedTemplate } from "@src/modules/mail/templates/password-ch
 import { compare, hash } from "bcryptjs";
 import { JwtService } from "@nestjs/jwt";
 import { env } from "@src/shared/config/env";
-import { MailService } from "@src/modules/mail/mail.service";
+import { MAIL_SERVICE } from "@src/modules/mail/interfaces/mail.service.interface";
+import type { IMailService } from "@src/modules/mail/interfaces/mail.service.interface";
 import { verifyEmailTemplate } from "@src/modules/mail/templates/verify-email.template";
 import { welcomeTemplate } from "@src/modules/mail/templates/welcome.template";
 import { VerificationTokenType } from "../../../../generated/prisma/client";
@@ -34,7 +35,8 @@ export class AuthService {
     @Inject(USERS_REPOSITORY)
     private readonly usersRepository: IUsersRepository,
     private readonly jwtService: JwtService,
-    private readonly mailService: MailService,
+    @Inject(MAIL_SERVICE)
+    private readonly mailService: IMailService,
     private readonly verificationTokensService: VerificationTokensService,
   ) {}
 

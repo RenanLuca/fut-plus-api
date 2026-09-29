@@ -4,7 +4,8 @@ import { GROUP_MEMBERS_REPOSITORY } from "@src/shared/database/interfaces/group-
 import type { IGroupMembersRepository } from "@src/shared/database/interfaces/group-members.repository.interface";
 import { GROUPS_REPOSITORY } from "@src/shared/database/interfaces/groups.repository.interface";
 import type { IGroupsRepository } from "@src/shared/database/interfaces/groups.repository.interface";
-import { MailService } from "@src/modules/mail/mail.service";
+import { MAIL_SERVICE } from "@src/modules/mail/interfaces/mail.service.interface";
+import type { IMailService } from "@src/modules/mail/interfaces/mail.service.interface";
 import { matchOpenedTemplate } from "@src/modules/mail/templates/match-opened.template";
 
 @Injectable()
@@ -18,7 +19,8 @@ export class GroupMatchNotificationsService {
     private readonly groupMembersRepository: IGroupMembersRepository,
     @Inject(GROUPS_REPOSITORY)
     private readonly groupsRepository: IGroupsRepository,
-    private readonly mailService: MailService,
+    @Inject(MAIL_SERVICE)
+    private readonly mailService: IMailService,
   ) {}
 
   /**

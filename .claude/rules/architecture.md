@@ -36,6 +36,24 @@ token. O service injeta com `@Inject(GROUPS_REPOSITORY)` e tipa com
 `import type { IGroupsRepository }` (`import type` é obrigatório por causa
 de `isolatedModules` + `emitDecoratorMetadata`).
 
+### Quando um service (não-repository) também ganha interface
+
+O mesmo padrão (interface + `Symbol` + `@Inject`) se aplica a um service
+que fala direto com uma infraestrutura externa — hoje só o `MailService`
+(`src/modules/mail/interfaces/mail.service.interface.ts`, token
+`MAIL_SERVICE`), que chama a API do Resend. A pasta `interfaces/` fica
+dentro do próprio módulo de feature, não em `src/shared/`, porque o
+service não é compartilhado entre models como um repository.
+
+Um service que só orquestra *outros services* da aplicação (ex:
+`GroupsService`, `UserBelongsToGroupService`, `VerificationTokensService`)
+**não** precisa desse padrão: é uma classe concreta normal, injetada sem
+token. Diferente de uma interface, uma classe não desaparece na compilação
+— o Nest resolve pelo tipo, e um teste troca a implementação com
+`{ provide: NomeDoService, useValue: mock }` sem precisar de token nem
+interface no meio. Dar interface a esses services não muda a capacidade de
+teste, só adiciona uma camada sem necessidade.
+
 Os métodos da interface são nomeados pela intenção (`findById`,
 `findAllByMember`), não recebem `Prisma.*Args`. Repositories que ainda não
 foram migrados continuam recebendo `Prisma.*Args` (ex:

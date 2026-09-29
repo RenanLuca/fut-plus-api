@@ -14,7 +14,8 @@ import { env } from "@src/shared/config/env";
 import { AuthService } from "@src/modules/auth/services/auth.service";
 import { VerificationTokensService } from "@src/modules/auth/services/verification-tokens.service";
 import { EMAIL_CHANGE_TOKEN_TTL_MS } from "@src/modules/auth/constants/tokenTtl";
-import { MailService } from "@src/modules/mail/mail.service";
+import { MAIL_SERVICE } from "@src/modules/mail/interfaces/mail.service.interface";
+import type { IMailService } from "@src/modules/mail/interfaces/mail.service.interface";
 import { changeEmailTemplate } from "@src/modules/mail/templates/change-email.template";
 import { emailChangedTemplate } from "@src/modules/mail/templates/email-changed.template";
 import { passwordChangedTemplate } from "@src/modules/mail/templates/password-changed.template";
@@ -33,7 +34,8 @@ export class UsersService {
     private readonly groupMatchesRepository: IGroupMatchesRepository,
     private readonly authService: AuthService,
     private readonly verificationTokensService: VerificationTokensService,
-    private readonly mailService: MailService,
+    @Inject(MAIL_SERVICE)
+    private readonly mailService: IMailService,
   ) {}
   async checkIfUserExists(userId: string) {
     const user = await this.usersRepository.findById(userId);

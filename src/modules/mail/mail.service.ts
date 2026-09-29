@@ -1,21 +1,18 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Resend } from "resend";
 import { env } from "@src/shared/config/env";
-import { MailContent } from "./templates/layout";
-
-export type MailMessage = MailContent & { to: string };
+import type {
+  IMailService,
+  MailMessage,
+} from "./interfaces/mail.service.interface";
 
 const RESEND_BATCH_LIMIT = 100;
 
 @Injectable()
-export class MailService {
+export class MailService implements IMailService {
   private readonly logger = new Logger(MailService.name);
   private readonly resend = new Resend(env.resendApiKey);
 
-  /**
-   * Fire-and-forget: never rejects. A failure to send is logged and
-   * swallowed so it can't break the request that triggered the email.
-   */
   async send({ to, subject, html }: MailMessage): Promise<void> {
     try {
       const { error } = await this.resend.emails.send({
@@ -37,10 +34,6 @@ export class MailService {
     }
   }
 
-  /**
-   * Same fire-and-forget contract as `send`, using Resend's batch
-   * endpoint (max 100 emails per call) to stay under the rate limit.
-   */
   async sendBatch(messages: MailMessage[]): Promise<void> {
     for (
       let i = 0;

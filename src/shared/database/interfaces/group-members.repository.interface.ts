@@ -35,13 +35,15 @@ export type ConfirmedMember = {
   position: PositionEnum;
 };
 
+export type CreateGroupMemberDTO = {
+  groupId: string;
+  userId: string;
+  type: GroupMemberType;
+  rank?: UserRank;
+};
+
 export interface IGroupMembersRepository {
-  create(data: {
-    groupId: string;
-    userId: string;
-    type: GroupMemberType;
-    rank?: UserRank;
-  }): Promise<GroupMember>;
+  create(data: CreateGroupMemberDTO): Promise<GroupMember>;
 
   findByGroupIdAndUserId(
     groupId: string,

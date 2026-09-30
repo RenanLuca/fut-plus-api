@@ -5,10 +5,11 @@ import {
 } from "../../../../generated/prisma/client";
 import { PrismaService } from "../prisma.service";
 import {
-  CreateGroupData,
+  CreateGroupDTO,
   Group,
   IGroupsRepository,
-  UpdateGroupData,
+  TransferGroupOwnershipDTO,
+  UpdateGroupDTO,
 } from "../interfaces/groups.repository.interface";
 import { FrequencyType } from "@src/shared/enum/FrequencyType";
 import { UserRank } from "@src/shared/enum/userRank";
@@ -19,7 +20,7 @@ export class GroupsRepository implements IGroupsRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async createWithOwner(
-    data: CreateGroupData,
+    data: CreateGroupDTO,
     ownerRank: UserRank,
   ): Promise<Group> {
     const group = await this.prisma.$transaction(async (tx) => {
@@ -69,7 +70,7 @@ export class GroupsRepository implements IGroupsRepository {
 
   async update(
     id: string,
-    data: UpdateGroupData,
+    data: UpdateGroupDTO,
   ): Promise<Group> {
     const group = await this.prisma.group.update({
       where: { id },
@@ -89,11 +90,7 @@ export class GroupsRepository implements IGroupsRepository {
     groupId,
     currentOwnerId,
     newOwnerId,
-  }: {
-    groupId: string;
-    currentOwnerId: string;
-    newOwnerId: string;
-  }): Promise<Group> {
+  }: TransferGroupOwnershipDTO): Promise<Group> {
     const group = await this.prisma.$transaction(async (tx) => {
       await tx.groupMember.update({
         where: {

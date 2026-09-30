@@ -16,7 +16,7 @@ export type Group = {
   updatedAt: Date;
 };
 
-export type CreateGroupData = {
+export type CreateGroupDTO = {
   name: string;
   ownerId: string;
   weekday: Weekday;
@@ -25,24 +25,28 @@ export type CreateGroupData = {
   valuePerUser: number;
 };
 
-export type UpdateGroupData = Partial<
-  Omit<CreateGroupData, "ownerId">
+export type UpdateGroupDTO = Partial<
+  Omit<CreateGroupDTO, "ownerId">
 >;
+
+export type TransferGroupOwnershipDTO = {
+  groupId: string;
+  currentOwnerId: string;
+  newOwnerId: string;
+};
 
 export interface IGroupsRepository {
   createWithOwner(
-    data: CreateGroupData,
+    data: CreateGroupDTO,
     ownerRank: UserRank,
   ): Promise<Group>;
   findById(id: string): Promise<Group | null>;
   findNameById(id: string): Promise<{ name: string } | null>;
   findAllByMember(userId: string): Promise<Group[]>;
   findAllByFrequency(frequency: FrequencyType): Promise<Group[]>;
-  update(id: string, data: UpdateGroupData): Promise<Group>;
+  update(id: string, data: UpdateGroupDTO): Promise<Group>;
   delete(id: string): Promise<Group>;
-  transferOwnership(params: {
-    groupId: string;
-    currentOwnerId: string;
-    newOwnerId: string;
-  }): Promise<Group>;
+  transferOwnership(
+    params: TransferGroupOwnershipDTO,
+  ): Promise<Group>;
 }

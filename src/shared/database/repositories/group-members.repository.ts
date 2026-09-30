@@ -2,13 +2,13 @@ import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma.service";
 import type {
   ConfirmedMember,
+  CreateGroupMemberDTO,
   GroupMember,
   GroupMemberWithUser,
   IGroupMembersRepository,
   MemberWithNotificationEmail,
 } from "../interfaces/group-members.repository.interface";
 import { GroupMemberType } from "@src/shared/enum/groupMemberType";
-import { UserRank } from "@src/shared/enum/userRank";
 import {
   toPositionEnum,
   toUserRank,
@@ -19,12 +19,9 @@ import type { GroupMember as PrismaGroupMember } from "../../../../generated/pri
 export class GroupMembersRepository implements IGroupMembersRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(data: {
-    groupId: string;
-    userId: string;
-    type: GroupMemberType;
-    rank?: UserRank;
-  }): Promise<GroupMember> {
+  async create(
+    data: CreateGroupMemberDTO,
+  ): Promise<GroupMember> {
     const member = await this.prisma.groupMember.create({
       data,
     });

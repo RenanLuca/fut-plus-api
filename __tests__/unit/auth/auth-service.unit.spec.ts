@@ -15,29 +15,36 @@ import {
   makeForgotPasswordInputMock,
   makeResetPasswordInputMock,
   makeVerificationTokenMock,
+  verificationEmailSentResponse,
+  emailVerifiedResponse,
+  resendVerificationResponse,
+  forgotPasswordResponse,
+  passwordResetResponse,
 } from "../../utils/auth";
 import { AuthService } from "@src/modules/auth/services/auth.service";
 import {
   ConflictException,
   UnauthorizedException,
   ForbiddenException,
+  BadRequestException,
 } from "@nestjs/common";
 import { compare } from "bcryptjs";
-import { VerificationTokenType } from "../../../generated/prisma/client";
+import { VerificationTokenType } from "@src/shared/enum/verificationTokenType";
 
 const usersRepoMock = mock<IUsersRepository>();
 const jwtServiceMock = mock<JwtService>();
 const mailServiceMock = mock<IMailService>();
+
+const { mockedHashedPassword } = vi.hoisted(() => ({
+  mockedHashedPassword: "hashedPassword",
+}));
 vi.mock("bcryptjs", () => ({
-  hash: vi.fn().mockResolvedValue("hashedPassword"),
+  hash: vi.fn().mockResolvedValue(mockedHashedPassword),
   compare: vi.fn().mockResolvedValue(true),
 }));
 const verificationTokensServiceMock =
   mock<VerificationTokensService>();
 
-// bcryptjs's `compare` is overloaded (a callback variant returning `void`
-// alongside the promise-based one); vi.mocked() picks up the callback
-// overload, so we cast to the shape we actually mock.
 const compareMock = compare as unknown as Mock<
   (password: string, hash: string) => Promise<boolean>
 >;
@@ -65,9 +72,7 @@ describe("AuthService", () => {
       expect(usersRepoMock.create).toHaveBeenCalledWith(
         makeSignupInputAfterHashMock(),
       );
-      expect(response).toEqual({
-        message: "Verification email sent",
-      });
+      expect(response).toEqual(verificationEmailSentResponse);
     });
     it("should throw an error if the email is already in use", async () => {
       usersRepoMock.findByEmail.mockResolvedValueOnce(
@@ -145,7 +150,7 @@ describe("AuthService", () => {
 
       expect(usersRepoMock.update).not.toHaveBeenCalled();
       expect(mailServiceMock.send).not.toHaveBeenCalled();
-      expect(response).toEqual({ message: "Email verified" });
+      expect(response).toEqual(emailVerifiedResponse);
     });
 
     it("should return early without updating if the email is already verified", async () => {
@@ -184,7 +189,23 @@ describe("AuthService", () => {
       expect(mailServiceMock.send).toHaveBeenCalledWith(
         expect.objectContaining({ to: user.email }),
       );
-      expect(response).toEqual({ message: "Email verified" });
+      expect(response).toEqual(emailVerifiedResponse);
+    });
+
+    it("should propagate the error if the token is invalid, expired or already used", async () => {
+      verificationTokensServiceMock.consume.mockRejectedValueOnce(
+        new BadRequestException("Invalid or expired token"),
+      );
+
+      const promiseResult = sut.verifyEmail(
+        makeVerifyEmailInputMock(),
+      );
+
+      await expect(promiseResult).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(usersRepoMock.findById).not.toHaveBeenCalled();
+      expect(usersRepoMock.update).not.toHaveBeenCalled();
     });
   });
 
@@ -198,12 +219,11 @@ describe("AuthService", () => {
         makeResendVerificationInputMock(),
       );
 
-      expect(verificationTokensServiceMock.issue).toHaveBeenCalled();
+      expect(
+        verificationTokensServiceMock.issue,
+      ).toHaveBeenCalled();
       expect(mailServiceMock.send).toHaveBeenCalled();
-      expect(response).toEqual({
-        message:
-          "If the account exists and is unverified, an email was sent",
-      });
+      expect(response).toEqual(resendVerificationResponse);
     });
 
     it("should not send anything if the user does not exist", async () => {
@@ -217,10 +237,7 @@ describe("AuthService", () => {
         verificationTokensServiceMock.issue,
       ).not.toHaveBeenCalled();
       expect(mailServiceMock.send).not.toHaveBeenCalled();
-      expect(response).toEqual({
-        message:
-          "If the account exists and is unverified, an email was sent",
-      });
+      expect(response).toEqual(resendVerificationResponse);
     });
 
     it("should not send anything if the user is already verified", async () => {
@@ -260,9 +277,7 @@ describe("AuthService", () => {
         }),
       );
       expect(mailServiceMock.send).toHaveBeenCalled();
-      expect(response).toEqual({
-        message: "If the account exists, a reset email was sent",
-      });
+      expect(response).toEqual(forgotPasswordResponse);
     });
 
     it("should not send anything if the user does not exist", async () => {
@@ -276,9 +291,7 @@ describe("AuthService", () => {
         verificationTokensServiceMock.issue,
       ).not.toHaveBeenCalled();
       expect(mailServiceMock.send).not.toHaveBeenCalled();
-      expect(response).toEqual({
-        message: "If the account exists, a reset email was sent",
-      });
+      expect(response).toEqual(forgotPasswordResponse);
     });
   });
 
@@ -298,14 +311,29 @@ describe("AuthService", () => {
       expect(usersRepoMock.update).toHaveBeenCalledWith(
         token.userId,
         {
-          hashedPassword: "hashedPassword",
+          hashedPassword: mockedHashedPassword,
           passwordChangedAt: expect.any(Date),
         },
       );
       expect(mailServiceMock.send).toHaveBeenCalledWith(
         expect.objectContaining({ to: user.email }),
       );
-      expect(response).toEqual({ message: "Password reset" });
+      expect(response).toEqual(passwordResetResponse);
+    });
+
+    it("should propagate the error if the token is invalid, expired or already used", async () => {
+      verificationTokensServiceMock.consume.mockRejectedValueOnce(
+        new BadRequestException("Invalid or expired token"),
+      );
+
+      const promiseResult = sut.resetPassword(
+        makeResetPasswordInputMock(),
+      );
+
+      await expect(promiseResult).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(usersRepoMock.update).not.toHaveBeenCalled();
     });
   });
 });

@@ -12,16 +12,25 @@ import { ForgotPasswordDto } from "@src/modules/auth/dto/forgotPassword.dto";
 import { ResetPasswordDto } from "@src/modules/auth/dto/resetPassword.dto";
 import { PositionEnum } from "@src/shared/enum/positionEnum";
 import { VerificationTokenType } from "@src/shared/enum/verificationTokenType";
+import { hash } from "bcryptjs";
 
-export function makeSignupOutputMock(overrides?: Partial<User>): User {
+const email = "test@example.com";
+const password = "hashedPassword";
+const newPassword = "newPassword123";
+const name = "Test User";
+const token = "some-token";
+
+export function makeSignupOutputMock(
+  overrides?: Partial<User>,
+): User {
   return {
     id: randomUUID(),
-    email: "test@example.com",
+    email,
     createdAt: new Date(),
     emailNotifications: true,
     emailVerifiedAt: new Date(),
-    hashedPassword: "hashedPassword",
-    name: "Test User",
+    hashedPassword: password,
+    name,
     updatedAt: new Date(),
     passwordChangedAt: new Date(),
     profilePicture: "profilePictureUrl",
@@ -31,53 +40,87 @@ export function makeSignupOutputMock(overrides?: Partial<User>): User {
   };
 }
 
-export function makeSignupInputMock(): SignupDto {
+export function makeSignupInputMock(
+  overrides?: Partial<SignupDto>,
+): SignupDto {
   return {
-    email: "test@example.com",
-    password: "hashedPassword",
-    name: "Test User",
+    email,
+    password,
+    name,
     position: PositionEnum.DEFENDER,
+    ...overrides,
   };
 }
 
-export function makeSignupInputAfterHashMock(): CreateUserDTO {
+export function makeSignupInputAfterHashMock(
+  overrides?: Partial<CreateUserDTO>,
+): CreateUserDTO {
   return {
-    email: "test@example.com",
-    hashedPassword: "hashedPassword",
-    name: "Test User",
+    email,
+    hashedPassword: password,
+    name,
     position: PositionEnum.DEFENDER,
+    ...overrides,
   };
 }
 
-export function makeSigninInputMock(): SigninDto {
+export function makeSigninInputMock(
+  overrides?: Partial<SigninDto>,
+): SigninDto {
   return {
-    email: "test@example.com",
-    password: "plainPassword",
+    email,
+    password,
+    ...overrides,
   };
 }
 
-export function makeVerifyEmailInputMock(): VerifyEmailDto {
+export function makeVerifyEmailInputMock(
+  overrides?: Partial<VerifyEmailDto>,
+): VerifyEmailDto {
   return {
-    token: "some-token",
+    token,
+    ...overrides,
   };
 }
 
-export function makeResendVerificationInputMock(): ResendVerificationDto {
+export function makeResendVerificationInputMock(
+  overrides?: Partial<ResendVerificationDto>,
+): ResendVerificationDto {
   return {
-    email: "test@example.com",
+    email,
+    ...overrides,
   };
 }
 
-export function makeForgotPasswordInputMock(): ForgotPasswordDto {
+export function makeForgotPasswordInputMock(
+  overrides?: Partial<ForgotPasswordDto>,
+): ForgotPasswordDto {
   return {
-    email: "test@example.com",
+    email,
+    ...overrides,
   };
 }
 
-export function makeResetPasswordInputMock(): ResetPasswordDto {
+export function makeResetPasswordInputMock(
+  overrides?: Partial<ResetPasswordDto>,
+): ResetPasswordDto {
   return {
-    token: "some-token",
-    password: "newPassword",
+    token,
+    password: newPassword,
+    ...overrides,
+  };
+}
+
+export async function makeCreateUserDTOWithRealHashMock(
+  overrides?: Partial<CreateUserDTO>,
+): Promise<CreateUserDTO> {
+  const hashedPassword = await hash(password, 10);
+  return {
+    email,
+    name,
+    position: PositionEnum.DEFENDER,
+    hashedPassword,
+    ...overrides,
   };
 }
 
@@ -96,3 +139,19 @@ export function makeVerificationTokenMock(
     ...overrides,
   };
 }
+
+// Canonical copies of what AuthService responds with on success. Tests
+// assert against these instead of duplicating the literal string, so a
+// copy change in the service only needs updating here.
+export const verificationEmailSentResponse = {
+  message: "Verification email sent",
+};
+export const emailVerifiedResponse = { message: "Email verified" };
+export const resendVerificationResponse = {
+  message:
+    "If the account exists and is unverified, an email was sent",
+};
+export const forgotPasswordResponse = {
+  message: "If the account exists, a reset email was sent",
+};
+export const passwordResetResponse = { message: "Password reset" };

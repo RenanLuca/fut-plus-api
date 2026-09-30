@@ -40,9 +40,11 @@ export interface IGuestUsersRepository {
 
   /**
    * Guests confirmed present (`isPresent: true`) for the match, with just
-   * the fields the team balancer needs.
+   * the fields the team balancer needs. Registered members are a
+   * separate model (IGroupMembersRepository.findConfirmedMembersByGroupMatchId)
+   * — a caller that needs everyone confirmed for a match must call both.
    */
-  findConfirmedByGroupMatchId(
+  findConfirmedGuestsByGroupMatchId(
     groupMatchId: string,
   ): Promise<ConfirmedGuest[]>;
 

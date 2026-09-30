@@ -61,10 +61,12 @@ export interface IGroupMembersRepository {
   ): Promise<MemberWithNotificationEmail[]>;
 
   /**
-   * Members confirmed present (`isPresent: true`) for the match, with
-   * just the fields the team balancer needs.
+   * Registered members (not guests) confirmed present (`isPresent: true`)
+   * for the match, with just the fields the team balancer needs. Guests
+   * are a separate model (IGuestUsersRepository.findConfirmedGuestsByGroupMatchId)
+   * — a caller that needs everyone confirmed for a match must call both.
    */
-  findConfirmedByGroupMatchId(
+  findConfirmedMembersByGroupMatchId(
     groupId: string,
     groupMatchId: string,
   ): Promise<ConfirmedMember[]>;

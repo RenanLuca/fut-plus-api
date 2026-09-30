@@ -6,8 +6,10 @@ import type {
   MatchTeamWithPlayers,
   TeamToCreate,
 } from "../interfaces/match-teams.repository.interface";
-import { PositionEnum } from "@src/shared/enum/positionEnum";
-import { UserRank } from "@src/shared/enum/userRank";
+import {
+  toPositionEnum,
+  toUserRank,
+} from "@src/shared/utils/enum-casters";
 
 @Injectable()
 export class MatchTeamsRepository implements IMatchTeamsRepository {
@@ -36,25 +38,7 @@ export class MatchTeamsRepository implements IMatchTeamsRepository {
   ): Promise<MatchTeamWithPlayers[]> {
     const teams = await this.prisma.matchTeam.findMany({
       where: { groupMatchId },
-      include: {
-        matchTeamPlayers: {
-          select: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                position: true,
-                profilePicture: true,
-                groupMembers: {
-                  where: { groupId },
-                  select: { rank: true },
-                },
-              },
-            },
-            guestUser: true,
-          },
-        },
-      },
+      include: this.playersInclude(groupId),
     });
     return teams.map((team) => this.toDomain(team));
   }
@@ -66,27 +50,36 @@ export class MatchTeamsRepository implements IMatchTeamsRepository {
   ): Promise<MatchTeamWithPlayers | null> {
     const team = await this.prisma.matchTeam.findFirst({
       where: { id, groupMatchId },
-      include: {
-        matchTeamPlayers: {
-          select: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                position: true,
-                profilePicture: true,
-                groupMembers: {
-                  where: { groupId },
-                  select: { rank: true },
-                },
-              },
-            },
-            guestUser: true,
-          },
-        },
-      },
+      include: this.playersInclude(groupId),
     });
     return team ? this.toDomain(team) : null;
+  }
+
+  /**
+   * Shared `include` shape for both finder methods above, so the
+   * "team with players" view can't silently drift between "list teams"
+   * and "get one team" if a field is added/removed in only one place.
+   */
+  private playersInclude(groupId: string) {
+    return {
+      matchTeamPlayers: {
+        select: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              position: true,
+              profilePicture: true,
+              groupMembers: {
+                where: { groupId },
+                select: { rank: true },
+              },
+            },
+          },
+          guestUser: true,
+        },
+      },
+    } as const;
   }
 
   async update(
@@ -156,10 +149,10 @@ export class MatchTeamsRepository implements IMatchTeamsRepository {
         user: player.user
           ? {
               ...player.user,
-              position: player.user.position as PositionEnum,
+              position: toPositionEnum(player.user.position),
               groupMembers: player.user.groupMembers.map(
                 (gm) => ({
-                  rank: gm.rank as UserRank | null,
+                  rank: toUserRank(gm.rank),
                 }),
               ),
             }
@@ -167,9 +160,10 @@ export class MatchTeamsRepository implements IMatchTeamsRepository {
         guestUser: player.guestUser
           ? {
               ...player.guestUser,
-              rank: player.guestUser.rank as UserRank,
-              position: player.guestUser
-                .position as PositionEnum,
+              rank: toUserRank(player.guestUser.rank),
+              position: toPositionEnum(
+                player.guestUser.position,
+              ),
             }
           : null,
       })),

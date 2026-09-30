@@ -8,8 +8,11 @@ import type {
   MemberWithNotificationEmail,
 } from "../interfaces/group-members.repository.interface";
 import { GroupMemberType } from "@src/shared/enum/groupMemberType";
-import { PositionEnum } from "@src/shared/enum/positionEnum";
 import { UserRank } from "@src/shared/enum/userRank";
+import {
+  toPositionEnum,
+  toUserRank,
+} from "@src/shared/utils/enum-casters";
 import type { GroupMember as PrismaGroupMember } from "../../../../generated/prisma/client";
 
 @Injectable()
@@ -58,7 +61,7 @@ export class GroupMembersRepository implements IGroupMembersRepository {
       ...this.toDomain(member),
       user: {
         ...member.user,
-        position: member.user.position as PositionEnum,
+        position: toPositionEnum(member.user.position),
       },
     }));
   }
@@ -84,7 +87,7 @@ export class GroupMembersRepository implements IGroupMembersRepository {
     }));
   }
 
-  async findConfirmedByGroupMatchId(
+  async findConfirmedMembersByGroupMatchId(
     groupId: string,
     groupMatchId: string,
   ): Promise<ConfirmedMember[]> {
@@ -105,8 +108,8 @@ export class GroupMembersRepository implements IGroupMembersRepository {
     });
     return members.map((member) => ({
       userId: member.userId,
-      rank: member.rank as UserRank | null,
-      position: member.user.position as PositionEnum,
+      rank: toUserRank(member.rank),
+      position: toPositionEnum(member.user.position),
     }));
   }
 
@@ -123,7 +126,7 @@ export class GroupMembersRepository implements IGroupMembersRepository {
     return {
       ...member,
       type: member.type as GroupMemberType,
-      rank: member.rank as UserRank | null,
+      rank: toUserRank(member.rank),
     };
   }
 }

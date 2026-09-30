@@ -76,16 +76,7 @@ export class GroupMatchesService {
       memberId: userId,
       groupId,
     });
-    await this.checkIfMatchBelongsToGroup({ groupId, matchId });
-    const match =
-      await this.groupMatchesRepository.findByIdAndGroupId(
-        matchId,
-        groupId,
-      );
-    if (!match) {
-      throw new NotFoundException("Match not found");
-    }
-    return match;
+    return this.checkIfMatchBelongsToGroup({ groupId, matchId });
   }
 
   async remove(groupId: string, matchId: string) {

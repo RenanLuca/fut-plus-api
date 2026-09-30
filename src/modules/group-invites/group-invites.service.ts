@@ -44,7 +44,8 @@ export class GroupInvitesService {
   }
 
   async preview(inviteId: string, userId: string) {
-    const invite = await this.checkIfInviteExists(inviteId);
+    const invite =
+      await this.checkIfInviteExistsWithGroupDetails(inviteId);
     const { group } = invite;
     const member =
       await this.groupMembersRepository.findByGroupIdAndUserId(
@@ -94,6 +95,17 @@ export class GroupInvitesService {
   }
 
   private async checkIfInviteExists(inviteId: string) {
+    const invite =
+      await this.groupInvitesRepository.findById(inviteId);
+    if (!invite) {
+      throw new NotFoundException("Invite not found or revoked");
+    }
+    return invite;
+  }
+
+  private async checkIfInviteExistsWithGroupDetails(
+    inviteId: string,
+  ) {
     const invite =
       await this.groupInvitesRepository.findByIdWithGroupDetails(
         inviteId,

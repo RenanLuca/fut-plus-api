@@ -7,6 +7,10 @@ import type {
 } from "../interfaces/guest-users.repository.interface";
 import { PositionEnum } from "@src/shared/enum/positionEnum";
 import { UserRank } from "@src/shared/enum/userRank";
+import {
+  toPositionEnum,
+  toUserRank,
+} from "@src/shared/utils/enum-casters";
 import type { GuestUser as PrismaGuestUser } from "../../../../generated/prisma/client";
 
 @Injectable()
@@ -42,7 +46,7 @@ export class GuestUsersRepository implements IGuestUsersRepository {
     return guests.map((guest) => this.toDomain(guest));
   }
 
-  async findConfirmedByGroupMatchId(
+  async findConfirmedGuestsByGroupMatchId(
     groupMatchId: string,
   ): Promise<ConfirmedGuest[]> {
     const guests = await this.prisma.guestUser.findMany({
@@ -54,8 +58,8 @@ export class GuestUsersRepository implements IGuestUsersRepository {
     });
     return guests.map((guest) => ({
       id: guest.id,
-      rank: guest.rank as UserRank,
-      position: guest.position as PositionEnum,
+      rank: toUserRank(guest.rank),
+      position: toPositionEnum(guest.position),
     }));
   }
 
@@ -69,8 +73,8 @@ export class GuestUsersRepository implements IGuestUsersRepository {
   private toDomain(guest: PrismaGuestUser): GuestUser {
     return {
       ...guest,
-      position: guest.position as PositionEnum,
-      rank: guest.rank as UserRank,
+      position: toPositionEnum(guest.position),
+      rank: toUserRank(guest.rank),
     };
   }
 }

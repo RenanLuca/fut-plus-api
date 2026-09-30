@@ -7,7 +7,7 @@ import type {
 } from "../interfaces/match-team-players.repository.interface";
 
 @Injectable()
-export class MatchTeamsPlayersRepository implements IMatchTeamPlayersRepository {
+export class MatchTeamPlayersRepository implements IMatchTeamPlayersRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async findByMatchAndPlayer(
@@ -28,17 +28,19 @@ export class MatchTeamsPlayersRepository implements IMatchTeamPlayersRepository 
   async addPlayers(
     players: PlayerAssignment[],
   ): Promise<MatchTeamPlayer[]> {
-    await this.prisma.matchTeamPlayer.createMany({
-      data: players,
-    });
-    return this.prisma.matchTeamPlayer.findMany({
-      where: {
-        OR: players.map((player) => ({
-          matchTeamId: player.matchTeamId,
-          userId: player.userId,
-          guestUserId: player.guestUserId,
-        })),
-      },
+    // Individual creates inside a transaction (rather than createMany +
+    // a refetch) so each created row is returned directly — createMany
+    // doesn't return rows, and re-matching by {matchTeamId, userId,
+    // guestUserId} could pick up an unrelated pre-existing row sharing
+    // the same combination.
+    return this.prisma.$transaction(async (tx) => {
+      const created: MatchTeamPlayer[] = [];
+      for (const player of players) {
+        created.push(
+          await tx.matchTeamPlayer.create({ data: player }),
+        );
+      }
+      return created;
     });
   }
 
@@ -46,6 +48,9 @@ export class MatchTeamsPlayersRepository implements IMatchTeamPlayersRepository 
     teamIds: string[],
     players: PlayerAssignment[],
   ): Promise<MatchTeamPlayer[]> {
+    // Unlike addPlayers, re-matching by teamIds here is safe: teamIds was
+    // just wiped by deleteMany above, so any row now found under those
+    // teams is guaranteed to be one just created, not a pre-existing one.
     return this.prisma.$transaction(async (tx) => {
       await tx.matchTeamPlayer.deleteMany({
         where: { matchTeamId: { in: teamIds } },

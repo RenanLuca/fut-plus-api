@@ -1,14 +1,12 @@
-import {
-  Position,
-  Rank,
-} from "../../../../generated/prisma/client";
+import { PositionEnum } from "@src/shared/enum/positionEnum";
+import { UserRank } from "@src/shared/enum/userRank";
 import { rankWeight } from "@src/shared/utils/rank-weight";
 
 export type ConfirmedMemberForBalancing = {
   userId: string | null;
   guestUserId: string | null;
-  rank: Rank | null;
-  position: Position;
+  rank: UserRank | null;
+  position: PositionEnum;
 };
 
 export type TeamPlayerAssignment = {
@@ -65,10 +63,10 @@ export function balanceMembersIntoTeams(
 
   const sortedMembers = [...members].sort(byRankDesc);
   const goalkeepers = sortedMembers.filter(
-    (member) => member.position === Position.GOALKEEPER,
+    (member) => member.position === PositionEnum.GOALKEEPER,
   );
   const outfieldPlayers = sortedMembers.filter(
-    (member) => member.position !== Position.GOALKEEPER,
+    (member) => member.position !== PositionEnum.GOALKEEPER,
   );
 
   goalkeepers

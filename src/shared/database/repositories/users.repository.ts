@@ -6,7 +6,7 @@ import type {
   UpdateUserDTO,
   User,
 } from "../interfaces/users.repository.interface";
-import { PositionEnum } from "@src/shared/enum/positionEnum";
+import { toPositionEnum } from "@src/shared/utils/enum-casters";
 import type { User as PrismaUser } from "../../../../generated/prisma/client";
 
 @Injectable()
@@ -57,6 +57,6 @@ export class UsersRepository implements IUsersRepository {
   }
 
   private toDomain(user: PrismaUser): User {
-    return { ...user, position: user.position as PositionEnum };
+    return { ...user, position: toPositionEnum(user.position) };
   }
 }

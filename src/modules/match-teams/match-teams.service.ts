@@ -136,11 +136,11 @@ export class MatchTeamsService {
 
     const [confirmedMembers, confirmedGuests] =
       await Promise.all([
-        this.groupMembersRepository.findConfirmedByGroupMatchId(
+        this.groupMembersRepository.findConfirmedMembersByGroupMatchId(
           groupId,
           matchId,
         ),
-        this.guestUsersRepository.findConfirmedByGroupMatchId(
+        this.guestUsersRepository.findConfirmedGuestsByGroupMatchId(
           matchId,
         ),
       ]);

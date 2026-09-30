@@ -12,18 +12,16 @@ import type { IGuestUsersRepository } from "@src/shared/database/interfaces/gues
 import { UpdateMatchPresenceDto } from "./dto/updateMatchPresence.dto";
 import { UserBelongsToGroupService } from "../groups/services/userBelongsToGroup.service";
 import { GroupMatchesService } from "../group-matches/services/group-matches.service";
-import {
-  Position,
-  Rank,
-} from "../../../generated/prisma/client";
+import { PositionEnum } from "@src/shared/enum/positionEnum";
+import { UserRank } from "@src/shared/enum/userRank";
 import { rankWeight } from "@src/shared/utils/rank-weight";
 
 type MatchPresenceMember = {
   id: string;
   name: string;
-  position: Position;
+  position: PositionEnum;
   profilePicture: string | null;
-  rank: Rank | null;
+  rank: UserRank | null;
   isGuest: boolean;
 };
 

@@ -10,7 +10,7 @@ import { GROUP_INVITES_REPOSITORY } from "./interfaces/group-invites.repository.
 import { GroupMatchesRepository } from "./repositories/group-matches.repository";
 import { MatchPresencesRepository } from "./repositories/match-presences.repository";
 import { MatchTeamsRepository } from "./repositories/match-teams.repository";
-import { MatchTeamsPlayersRepository } from "./repositories/match-team-players.repository";
+import { MatchTeamPlayersRepository } from "./repositories/match-team-players.repository";
 import { GroupPaymentsRepository } from "./repositories/group-payments.repository";
 import { GroupInvitesRepository } from "./repositories/group-invites.repository";
 import { VerificationTokensRepository } from "./repositories/verification-tokens.repository";
@@ -51,7 +51,7 @@ import { VERIFICATION_TOKENS_REPOSITORY } from "./interfaces/verification-tokens
     },
     {
       provide: MATCH_TEAM_PLAYERS_REPOSITORY,
-      useClass: MatchTeamsPlayersRepository,
+      useClass: MatchTeamPlayersRepository,
     },
     {
       provide: GROUP_PAYMENTS_REPOSITORY,

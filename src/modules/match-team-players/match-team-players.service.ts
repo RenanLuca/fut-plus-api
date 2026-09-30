@@ -85,9 +85,14 @@ export class MatchTeamPlayersService {
       matchId,
       matchTeamId: matchTeamId,
     });
+    // Dropped here, before validation and before the repository call,
+    // so a player with neither id never reaches addPlayers and can't be
+    // inserted with both FKs null.
+    const validPlayers = players.filter(
+      (player) => player.userId || player.guestUserId,
+    );
     await Promise.all(
-      players.map(async (player) => {
-        if (!player.userId && !player.guestUserId) return;
+      validPlayers.map(async (player) => {
         await this.checkPlayerBelongsToMatch({
           player,
           groupId,
@@ -101,7 +106,7 @@ export class MatchTeamPlayersService {
       }),
     );
     return await this.matchTeamPlayersRepository.addPlayers(
-      players.map((player) => ({
+      validPlayers.map((player) => ({
         matchTeamId,
         groupMatchId: matchId,
         userId: player.userId,

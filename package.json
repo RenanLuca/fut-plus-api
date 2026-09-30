@@ -17,7 +17,8 @@
     "seed": "prisma db seed",
     "test": "vitest",
     "test:watch": "vitest --watch",
-    "test:cov": "vitest --coverage"
+    "test:cov": "vitest --coverage",
+    "test:db:reset": "tsx scripts/reset-test-db.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
@@ -47,6 +48,8 @@
     "@types/jest": "^30.0.0",
     "@types/node": "^24.13.3",
     "@types/supertest": "^7.0.0",
+    "@vitest/coverage-v8": "^5.0.2",
+    "dotenv": "^17.4.2",
     "eslint": "^9.18.0",
     "eslint-config-prettier": "^10.0.1",
     "eslint-plugin-prettier": "^5.2.2",

@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma.service";
 import type {
+  CreateGroupMatchDTO,
   GroupMatch,
   IGroupMatchesRepository,
   UpcomingMatchForUser,
@@ -10,10 +11,9 @@ import type {
 export class GroupMatchesRepository implements IGroupMatchesRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(data: {
-    groupId: string;
-    matchDate: Date;
-  }): Promise<GroupMatch> {
+  async create(
+    data: CreateGroupMatchDTO,
+  ): Promise<GroupMatch> {
     return this.prisma.groupMatch.create({ data });
   }
 

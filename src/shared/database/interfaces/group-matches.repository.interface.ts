@@ -14,11 +14,13 @@ export type UpcomingMatchForUser = GroupMatch & {
   group: { id: string; name: string; valuePerUser: number };
 };
 
+export type CreateGroupMatchDTO = {
+  groupId: string;
+  matchDate: Date;
+};
+
 export interface IGroupMatchesRepository {
-  create(data: {
-    groupId: string;
-    matchDate: Date;
-  }): Promise<GroupMatch>;
+  create(data: CreateGroupMatchDTO): Promise<GroupMatch>;
 
   findById(id: string): Promise<GroupMatch | null>;
 

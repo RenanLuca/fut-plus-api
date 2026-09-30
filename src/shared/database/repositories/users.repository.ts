@@ -32,10 +32,16 @@ export class UsersRepository implements IUsersRepository {
     return user ? this.toDomain(user) : null;
   }
 
-  async update(
+  async findPasswordChangedAtById(
     id: string,
-    data: UpdateUserDTO,
-  ): Promise<User> {
+  ): Promise<{ passwordChangedAt: Date | null } | null> {
+    return this.prisma.user.findUnique({
+      where: { id },
+      select: { passwordChangedAt: true },
+    });
+  }
+
+  async update(id: string, data: UpdateUserDTO): Promise<User> {
     const user = await this.prisma.user.update({
       where: { id },
       data,

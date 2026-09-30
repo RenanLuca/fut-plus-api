@@ -22,7 +22,7 @@ import { MAIL_SERVICE } from "@src/modules/mail/interfaces/mail.service.interfac
 import type { IMailService } from "@src/modules/mail/interfaces/mail.service.interface";
 import { verifyEmailTemplate } from "@src/modules/mail/templates/verify-email.template";
 import { welcomeTemplate } from "@src/modules/mail/templates/welcome.template";
-import { VerificationTokenType } from "../../../../generated/prisma/client";
+import { VerificationTokenType } from "@src/shared/enum/verificationTokenType";
 import {
   EMAIL_VERIFICATION_TOKEN_TTL_MS,
   PASSWORD_RESET_TOKEN_TTL_MS,

@@ -1,4 +1,4 @@
-import type { VerificationTokenType } from "../../../../generated/prisma/client";
+import { VerificationTokenType } from "@src/shared/enum/verificationTokenType";
 
 export const VERIFICATION_TOKENS_REPOSITORY = Symbol(
   "VERIFICATION_TOKENS_REPOSITORY",
@@ -15,14 +15,18 @@ export type VerificationToken = {
   createdAt: Date;
 };
 
+export type CreateVerificationTokenDTO = {
+  userId: string;
+  type: VerificationTokenType;
+  tokenHash: string;
+  newEmail?: string;
+  expiresAt: Date;
+};
+
 export interface IVerificationTokensRepository {
-  create(data: {
-    userId: string;
-    type: VerificationTokenType;
-    tokenHash: string;
-    newEmail?: string;
-    expiresAt: Date;
-  }): Promise<VerificationToken>;
+  create(
+    data: CreateVerificationTokenDTO,
+  ): Promise<VerificationToken>;
 
   findByTokenHash(
     tokenHash: string,

@@ -19,7 +19,7 @@ import type { IMailService } from "@src/modules/mail/interfaces/mail.service.int
 import { changeEmailTemplate } from "@src/modules/mail/templates/change-email.template";
 import { emailChangedTemplate } from "@src/modules/mail/templates/email-changed.template";
 import { passwordChangedTemplate } from "@src/modules/mail/templates/password-changed.template";
-import { VerificationTokenType } from "../../../generated/prisma/client";
+import { VerificationTokenType } from "@src/shared/enum/verificationTokenType";
 import { UpdateUserDto } from "./dto/updateUser.dto";
 import { ChangePasswordDto } from "./dto/changePassword.dto";
 import { ChangeEmailDto } from "./dto/changeEmail.dto";

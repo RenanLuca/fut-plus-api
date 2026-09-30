@@ -45,6 +45,15 @@ export interface IUsersRepository {
   findById(id: string): Promise<User | null>;
   findByEmail(email: string): Promise<User | null>;
 
+  /**
+   * Just the one field AuthGuard checks on every authenticated request —
+   * avoids pulling the full row (hashedPassword included) into memory on
+   * every call.
+   */
+  findPasswordChangedAtById(
+    id: string,
+  ): Promise<{ passwordChangedAt: Date | null } | null>;
+
   update(id: string, data: UpdateUserDTO): Promise<User>;
 
   delete(id: string): Promise<User>;

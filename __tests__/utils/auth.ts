@@ -11,7 +11,7 @@ import { ResendVerificationDto } from "@src/modules/auth/dto/resendVerification.
 import { ForgotPasswordDto } from "@src/modules/auth/dto/forgotPassword.dto";
 import { ResetPasswordDto } from "@src/modules/auth/dto/resetPassword.dto";
 import { PositionEnum } from "@src/shared/enum/positionEnum";
-import { VerificationTokenType } from "../../generated/prisma/client";
+import { VerificationTokenType } from "@src/shared/enum/verificationTokenType";
 
 export function makeSignupOutputMock(overrides?: Partial<User>): User {
   return {

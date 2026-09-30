@@ -68,7 +68,8 @@ export class AuthGuard implements CanActivate {
     sub,
     iat,
   }: AccessTokenPayload) {
-    const user = await this.usersRepository.findById(sub);
+    const user =
+      await this.usersRepository.findPasswordChangedAtById(sub);
     if (!user) {
       throw new UnauthorizedException();
     }

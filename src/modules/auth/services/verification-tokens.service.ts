@@ -6,7 +6,7 @@ import {
 import { createHash, randomBytes } from "node:crypto";
 import { VERIFICATION_TOKENS_REPOSITORY } from "@src/shared/database/interfaces/verification-tokens.repository.interface";
 import type { IVerificationTokensRepository } from "@src/shared/database/interfaces/verification-tokens.repository.interface";
-import { VerificationTokenType } from "../../../../generated/prisma/client";
+import { VerificationTokenType } from "@src/shared/enum/verificationTokenType";
 
 function hashToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");

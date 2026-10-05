@@ -22,15 +22,17 @@ export type GroupPaymentFilters = {
 
 export type Pagination = { skip: number; take: number };
 
+export type CreateGroupPaymentDTO = {
+  groupId: string;
+  userId: string;
+  matchId?: string | null;
+  period: Date | string;
+  amount: number;
+  receipt?: string;
+};
+
 export interface IGroupPaymentsRepository {
-  create(data: {
-    groupId: string;
-    userId: string;
-    matchId?: string | null;
-    period: Date | string;
-    amount: number;
-    receipt?: string;
-  }): Promise<GroupPayment>;
+  create(data: CreateGroupPaymentDTO): Promise<GroupPayment>;
 
   findByIdAndGroupId(
     id: string,

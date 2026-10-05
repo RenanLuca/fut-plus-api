@@ -21,13 +21,15 @@ export type ConfirmedGuest = {
   position: PositionEnum;
 };
 
+export type CreateGuestUserDTO = {
+  name: string;
+  position: PositionEnum;
+  rank: UserRank;
+  groupMatchId: string;
+};
+
 export interface IGuestUsersRepository {
-  create(data: {
-    name: string;
-    position: PositionEnum;
-    rank: UserRank;
-    groupMatchId: string;
-  }): Promise<GuestUser>;
+  create(data: CreateGuestUserDTO): Promise<GuestUser>;
 
   findByIdAndGroupMatchId(
     id: string,

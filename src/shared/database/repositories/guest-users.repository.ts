@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma.service";
 import type {
   ConfirmedGuest,
+  CreateGuestUserDTO,
   GuestUser,
   IGuestUsersRepository,
 } from "../interfaces/guest-users.repository.interface";
@@ -17,12 +18,7 @@ import type { GuestUser as PrismaGuestUser } from "../../../../generated/prisma/
 export class GuestUsersRepository implements IGuestUsersRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(data: {
-    name: string;
-    position: PositionEnum;
-    rank: UserRank;
-    groupMatchId: string;
-  }): Promise<GuestUser> {
+  async create(data: CreateGuestUserDTO): Promise<GuestUser> {
     const guest = await this.prisma.guestUser.create({ data });
     return this.toDomain(guest);
   }

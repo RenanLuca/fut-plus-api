@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma.service";
 import type {
+  CreateGroupPaymentDTO,
   GroupPayment,
   GroupPaymentFilters,
   IGroupPaymentsRepository,
@@ -11,14 +12,9 @@ import type {
 export class GroupPaymentsRepository implements IGroupPaymentsRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(data: {
-    groupId: string;
-    userId: string;
-    matchId?: string | null;
-    period: Date | string;
-    amount: number;
-    receipt?: string;
-  }): Promise<GroupPayment> {
+  async create(
+    data: CreateGroupPaymentDTO,
+  ): Promise<GroupPayment> {
     return this.prisma.groupPayment.create({ data });
   }
 

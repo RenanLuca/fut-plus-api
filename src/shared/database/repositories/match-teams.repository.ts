@@ -1,10 +1,12 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma.service";
 import type {
+  CreateMatchTeamDTO,
   IMatchTeamsRepository,
   MatchTeam,
   MatchTeamWithPlayers,
   TeamToCreate,
+  UpdateMatchTeamDTO,
 } from "../interfaces/match-teams.repository.interface";
 import {
   toPositionEnum,
@@ -15,11 +17,7 @@ import {
 export class MatchTeamsRepository implements IMatchTeamsRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(data: {
-    groupMatchId: string;
-    name: string;
-    color: string;
-  }): Promise<MatchTeam> {
+  async create(data: CreateMatchTeamDTO): Promise<MatchTeam> {
     return this.prisma.matchTeam.create({ data });
   }
 
@@ -84,7 +82,7 @@ export class MatchTeamsRepository implements IMatchTeamsRepository {
 
   async update(
     id: string,
-    data: Partial<{ name: string; color: string }>,
+    data: UpdateMatchTeamDTO,
   ): Promise<MatchTeam> {
     return this.prisma.matchTeam.update({ where: { id }, data });
   }

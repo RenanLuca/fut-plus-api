@@ -19,6 +19,11 @@ export type PlayerAssignment = {
   guestUserId?: string;
 };
 
+export type MatchPlayerIdentifierDTO = {
+  userId?: string;
+  guestUserId?: string;
+};
+
 export interface IMatchTeamPlayersRepository {
   /**
    * Finds the roster entry for this player in the match, whichever id
@@ -26,7 +31,7 @@ export interface IMatchTeamPlayersRepository {
    */
   findByMatchAndPlayer(
     groupMatchId: string,
-    player: { userId?: string; guestUserId?: string },
+    player: MatchPlayerIdentifierDTO,
   ): Promise<MatchTeamPlayer | null>;
 
   addPlayers(

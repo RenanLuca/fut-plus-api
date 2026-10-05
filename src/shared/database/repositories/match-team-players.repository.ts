@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma.service";
 import type {
   IMatchTeamPlayersRepository,
+  MatchPlayerIdentifierDTO,
   MatchTeamPlayer,
   PlayerAssignment,
 } from "../interfaces/match-team-players.repository.interface";
@@ -12,10 +13,7 @@ export class MatchTeamPlayersRepository implements IMatchTeamPlayersRepository {
 
   async findByMatchAndPlayer(
     groupMatchId: string,
-    {
-      userId,
-      guestUserId,
-    }: { userId?: string; guestUserId?: string },
+    { userId, guestUserId }: MatchPlayerIdentifierDTO,
   ): Promise<MatchTeamPlayer | null> {
     return this.prisma.matchTeamPlayer.findFirst({
       where: {

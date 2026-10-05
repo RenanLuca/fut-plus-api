@@ -40,12 +40,19 @@ export type TeamToCreate = {
   players: { userId?: string; guestUserId?: string }[];
 };
 
+export type CreateMatchTeamDTO = {
+  groupMatchId: string;
+  name: string;
+  color: string;
+};
+
+export type UpdateMatchTeamDTO = Partial<{
+  name: string;
+  color: string;
+}>;
+
 export interface IMatchTeamsRepository {
-  create(data: {
-    groupMatchId: string;
-    name: string;
-    color: string;
-  }): Promise<MatchTeam>;
+  create(data: CreateMatchTeamDTO): Promise<MatchTeam>;
 
   findByIdAndGroupMatchId(
     id: string,
@@ -67,10 +74,7 @@ export interface IMatchTeamsRepository {
     groupId: string,
   ): Promise<MatchTeamWithPlayers | null>;
 
-  update(
-    id: string,
-    data: Partial<{ name: string; color: string }>,
-  ): Promise<MatchTeam>;
+  update(id: string, data: UpdateMatchTeamDTO): Promise<MatchTeam>;
 
   /**
    * Replaces every team of the match with a freshly balanced set, in a

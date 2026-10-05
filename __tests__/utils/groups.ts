@@ -1,8 +1,10 @@
 import { Group } from "@src/shared/database/interfaces/groups.repository.interface";
 import {
   GroupMember,
+  GroupMemberWithUser,
   MemberWithNotificationEmail,
 } from "@src/shared/database/interfaces/group-members.repository.interface";
+import { PositionEnum } from "@src/shared/enum/positionEnum";
 import { CreateGroupDto } from "@src/modules/groups/dto/create-group.dto";
 import { UpdateGroupDto } from "@src/modules/groups/dto/update-group.dto";
 import { TransferOwnershipDto } from "@src/modules/groups/dto/transfer-ownership.dto";
@@ -74,6 +76,21 @@ export function makeGroupMemberMock(
     rank: UserRank.BRASILEIRAO,
     createdAt: new Date(),
     updatedAt: new Date(),
+    ...overrides,
+  };
+}
+
+export function makeGroupMemberWithUserMock(
+  overrides?: Partial<GroupMemberWithUser>,
+): GroupMemberWithUser {
+  return {
+    ...makeGroupMemberMock(),
+    user: {
+      id: randomUUID(),
+      name: "Member Name",
+      position: PositionEnum.DEFENDER,
+      profilePicture: null,
+    },
     ...overrides,
   };
 }
